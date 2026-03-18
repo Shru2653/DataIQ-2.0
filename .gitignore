@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Environment variables
+.env
+.venv
+env/
+venv/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+temp_processed/
+*.tmp
+*.temp
+
+# Test files (keep some, exclude others)
+backend/test_*.json
+backend/debug_*.py
+backend/test_request.json
+backend/test_payload.json
+backend/test_handle.json
+
+# Build files
+dist/
+build/
+*.egg-info/

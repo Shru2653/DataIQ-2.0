@@ -1,0 +1,12 @@
+﻿id,name,age,salary,department,join_date,is_active,score,category,notes
+1,John Doe,25,50000.5,Engineering,2023-01-15,True,85.5,A,Good performer
+2,Jane Smith,30,75000.0,Marketing,2022-03-20,True,92.3,A,Excellent work
+5,Charlie Wilson,45,95000.0,Engineering,2020-08-05,True,88.7,A,Senior developer
+6,Diana Lee,32,70000.0,Marketing,2022-11-12,True,91.2,A,Team lead
+7,Eve Davis,29,55000.0,Sales,2023-02-28,False,82.4,B,Left company
+10,Henry Clark,42,90000.0,Engineering,2020-12-01,True,89.5,A,Architect
+11,John Doe,25,50000.5,Engineering,2023-01-15,True,85.5,A,Good performer
+14,Kate Thompson,33,72000.0,Engineering,2022-07-18,True,86.3,A,Full stack dev
+15,Liam Wilson,29,58000.0,Marketing,invalid-date,True,84.2,B,Social media
+18,Olivia Johnson,30,65000.0,Marketing,2022-09-30,False,90.7,A,Left for better role
+20,Quinn Brown,28,56000.0,Sales,2023-01-25,True,81.9,B,Account manager

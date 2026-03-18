@@ -1,0 +1,3 @@
+:root { --primary: #2563eb; --secondary: #10b981; --accent: #f59e0b; }
+.light { --bg: #ffffff; --fg: #0b1220; }
+.dark { --bg: #0b1220; --fg: #e5e7eb; }

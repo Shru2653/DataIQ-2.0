@@ -1,0 +1,11 @@
+Name,Age,Gender,City,Salary
+Alice,25.0,F,New York,55000.0
+Bob,,M,Los Angeles,48000.0
+Charlie,30.0,M,,
+David,22.0,M,Chicago,61000.0
+,28.0,F,Houston,53000.0
+Fiona,,F,Phoenix,
+George,40.0,,,72000.0
+Hannah,35.0,F,Dallas,68000.0
+Ian,,M,Austin,50000.0
+Julia,27.0,F,Miami,
