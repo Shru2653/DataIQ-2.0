@@ -18,6 +18,7 @@ venv/
 # IDE files
 .vscode/
 .idea/
+.zed/
 *.swp
 *.swo
 
