@@ -23,6 +23,8 @@ from app.routes.auth_routes import router as auth_router
 from app.routes.data_quality_routes import router as data_quality_router
 from app.routes.cleaning_recommendations_routes import router as cleaning_recommendations_router
 from app.routes.drift_detection_routes import router as drift_detection_router
+from app.routes.chatbot_routes import router as chatbot_router
+
 
 
 app = FastAPI(title="DataIQ Backend", version="0.1.0")
@@ -32,7 +34,7 @@ settings = get_settings()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -75,5 +77,8 @@ app.include_router(auth_router)
 app.include_router(data_quality_router)
 app.include_router(cleaning_recommendations_router)
 app.include_router(drift_detection_router)
+app.include_router(chatbot_router, prefix="/api/chatbot", tags=["Chatbot"])
+
+
 
 # Note: Do not auto-clean TEMP_DIR on exit to preserve cleaned files
