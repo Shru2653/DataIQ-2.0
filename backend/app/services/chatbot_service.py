@@ -17,23 +17,63 @@ warnings.filterwarnings("ignore", category=UserWarning)
 
 load_dotenv()
 
-# ── Gemini setup ───────────────────────────────────────────────────────────────
+# ── Gemini setup (new google.genai SDK) ────────────────────────────────────────
 _GEMINI_KEY   = os.getenv("GEMINI_API_KEY", "")
-_gemini_model = None
-_new_genai_client = None
+_genai_client = None
+_GEMINI_MODEL = "gemini-2.0-flash"
 
 if _GEMINI_KEY:
     try:
-        import google.generativeai as genai
-        genai.configure(api_key=_GEMINI_KEY)
-        _gemini_model = genai.GenerativeModel("gemini-1.5-flash")
+        from google import genai as _genai_sdk
+        _genai_client = _genai_sdk.Client(api_key=_GEMINI_KEY)
     except Exception:
+        _genai_client = None
+
+def _call_gemini(prompt: str) -> str:
+    """Single helper — calls new google.genai SDK with 15s timeout and retry."""
+    if not _GEMINI_KEY or _genai_client is None:
+        return (
+            "⚠️ Gemini API key not configured.\n"
+            "Add `GEMINI_API_KEY=your-key` to `backend/.env` and restart.\n"
+            "Get a free key at https://aistudio.google.com/app/apikey"
+        )
+    import time
+    import concurrent.futures
+
+    for attempt in range(2):
         try:
-            from google import genai as _ng
-            _new_genai_client = _ng.Client(api_key=_GEMINI_KEY)
-            _gemini_model = "new_sdk"
-        except Exception:
-            _gemini_model = None
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(
+                    _genai_client.models.generate_content,
+                    model=_GEMINI_MODEL,
+                    contents=prompt,
+                )
+                resp = future.result(timeout=15)
+            return resp.text.strip()
+        except concurrent.futures.TimeoutError:
+            return (
+                "⏱️ Gemini took too long to respond.\n\n"
+                "**Try built-in commands instead:**\n"
+                "• `unique values in CustomerName` — list all customers\n"
+                "• `group by category` — breakdown by category\n"
+                "• `summary` — dataset overview\n"
+                "• Or rephrase and try again"
+            )
+        except Exception as e:
+            err = str(e)
+            if "429" in err or "quota" in err.lower():
+                if attempt < 1:
+                    time.sleep(35)
+                    continue
+                return (
+                    "⚠️ Gemini free tier quota exceeded.\n\n"
+                    "• Wait a minute and try again\n"
+                    "• Use built-in commands (summary, filter, chart, sort etc.)\n"
+                    "• Upgrade at https://ai.dev/rate-limit"
+                )
+            return f"⚠️ Gemini error: {err}"
+    return "⚠️ Gemini unavailable. Please try again shortly."
+
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 _BACKEND_DIR  = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -41,7 +81,6 @@ UPLOAD_FOLDER = os.path.join(_BACKEND_DIR, "static", "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # ── Session store ─────────────────────────────────────────────────────────────
-# { session_id: { df, filename, last_column, original_df } }
 _sessions: dict = {}
 
 
@@ -112,8 +151,11 @@ _INTENTS = {
     "sort":        ["sort", "order by", "arrange", "rank by", "ranked by"],
     "topn":        ["top ", "top-", "bottom ", "lowest ", "highest ", "first ", "last "],
     "groupby":     ["group by", "grouped by", "groupby", "per ", "by each", "breakdown by", "split by"],
-    "unique":      ["unique", "distinct", "different values", "value counts", "how many unique", "categories in"],
-    "count":       ["count rows", "count where", "how many rows", "number of rows", "rows matching"],
+    "unique":      ["unique", "distinct", "different values", "value counts", "how many unique",
+                    "categories in", "all customers", "all products", "all categories",
+                    "list all", "give me all", "show all", "customer names", "product names"],
+    "count":       ["count rows", "count where", "how many rows", "number of rows", "rows matching",
+                    "how many products", "how many categories", "how many customers", "how many orders"],
     "correlation": ["correlation", "correlate", "relationship between", "correlated"],
     "median":      ["median"],
     "std":         ["std", "standard deviation", "variance"],
@@ -134,13 +176,16 @@ _INTENTS = {
     "sample":      ["sample", "random rows", "show me some", "preview"],
     "reset":       ["reset", "restore", "original data", "undo clean"],
     "dtypes":      ["data type", "datatypes", "dtype", "types of column"],
+    "sql":         ["select ", "query ", "sql ", "where clause", "fetch rows",
+                    "give me rows", "show me records", "find all", "get all",
+                    "retrieve", "pull rows", "nl query"],
 }
 
 
 def detect_intent(query: str) -> str:
     q = query.lower()
-    # Multi-word intents first (order matters)
-    for intent in ("groupby", "filter", "topn", "correlation", "heatmap",
+    for intent in ("sql",
+                   "groupby", "filter", "topn", "correlation", "heatmap",
                    "histogram", "scatter", "linechart", "pie", "chart",
                    "sort", "unique", "count", "percentile", "median", "std",
                    "download", "reset", "sample", "dtypes",
@@ -173,7 +218,6 @@ def detect_column(df: pd.DataFrame, query: str) -> str | None:
 
 
 def detect_two_columns(df: pd.DataFrame, query: str) -> tuple[str | None, str | None]:
-    """Extract two column names from a query (for scatter / correlation)."""
     q = query.lower()
     cols = df.columns.tolist()
     found = []
@@ -183,7 +227,6 @@ def detect_two_columns(df: pd.DataFrame, query: str) -> tuple[str | None, str | 
         if len(found) == 2:
             break
     if len(found) < 2:
-        # Try word-level partial match
         words = [w for w in re.split(r"[\s,]+", q) if len(w) > 2]
         for col in cols:
             for w in words:
@@ -340,7 +383,6 @@ def compute_stat(df: pd.DataFrame, col: str, stat: str) -> str:
 
 
 def get_percentile(df: pd.DataFrame, col: str, query: str) -> str:
-    # Extract percentile number from query
     match = re.search(r"(\d+)(?:th|st|nd|rd)?", query)
     p = int(match.group(1)) if match else 50
     try:
@@ -364,8 +406,6 @@ def get_unique(df: pd.DataFrame, col: str) -> str:
 
 
 def count_rows(df: pd.DataFrame, query: str) -> str:
-    """Count rows matching a simple condition parsed from query."""
-    # Try to parse col operator value, e.g. "count where salary > 50000"
     match = re.search(r"(\w[\w\s]*?)\s*(>=|<=|!=|>|<|=|==)\s*(['\"]?[\w\s.]+['\"]?)", query, re.I)
     if not match:
         return f"📊 **Total rows:** {len(df):,}"
@@ -387,10 +427,6 @@ def count_rows(df: pd.DataFrame, query: str) -> str:
 
 
 def filter_data(df: pd.DataFrame, query: str) -> tuple[pd.DataFrame | None, str]:
-    """
-    Parse and apply a filter from natural language.
-    e.g. "filter salary > 50000", "show rows where department = Sales"
-    """
     match = re.search(
         r"([a-zA-Z_][\w\s]*?)\s*(>=|<=|!=|>|<|==|=|contains|startswith|endswith)\s*(['\"]?[\w\s.\-]+['\"]?)",
         query, re.I
@@ -446,17 +482,14 @@ def sort_data(df: pd.DataFrame, query: str, col: str | None) -> str:
 
 
 def get_topn(df: pd.DataFrame, query: str, col: str | None) -> str:
-    # Extract N
     match = re.search(r"\b(\d+)\b", query)
     n     = int(match.group(1)) if match else 5
     target = col or detect_column(df, query)
     if not target:
         target = df.select_dtypes(include="number").columns[0] if not df.select_dtypes(include="number").empty else df.columns[0]
-
     is_bottom = any(w in query.lower() for w in ["bottom", "lowest", "worst", "smallest", "last"])
     asc       = is_bottom
     label     = f"Bottom {n}" if is_bottom else f"Top {n}"
-
     try:
         sorted_df = df.sort_values(by=target, ascending=asc).head(n)
         preview   = sorted_df.to_string(index=False)
@@ -466,10 +499,7 @@ def get_topn(df: pd.DataFrame, query: str, col: str | None) -> str:
 
 
 def get_groupby(df: pd.DataFrame, query: str) -> str:
-    """Group by a categorical column and aggregate a numeric one."""
     q = query.lower()
-
-    # Detect aggregation
     if any(w in q for w in ["sum", "total"]):
         agg, agg_label = "sum", "Total"
     elif any(w in q for w in ["average", "mean", "avg"]):
@@ -483,29 +513,28 @@ def get_groupby(df: pd.DataFrame, query: str) -> str:
     else:
         agg, agg_label = "sum", "Total"
 
-    cat_cols = df.select_dtypes(exclude="number").columns.tolist()
-    num_cols = df.select_dtypes(include="number").columns.tolist()
-
-    group_col  = next((c for c in cat_cols if c.lower() in q), None) or (cat_cols[0] if cat_cols else None)
-    value_col  = next((c for c in num_cols if c.lower() in q), None) or (num_cols[0] if num_cols else None)
+    cat_cols  = df.select_dtypes(exclude="number").columns.tolist()
+    num_cols  = df.select_dtypes(include="number").columns.tolist()
+    group_col = next((c for c in cat_cols if c.lower() in q), None) or (cat_cols[0] if cat_cols else None)
+    value_col = next((c for c in num_cols if c.lower() in q), None) or (num_cols[0] if num_cols else None)
 
     if not group_col:
         return "⚠️ No categorical column found for grouping."
 
     try:
         if agg == "count":
-            result = df.groupby(group_col).size().reset_index(name="Count")
-            result = result.sort_values("Count", ascending=False)
+            result  = df.groupby(group_col).size().reset_index(name="Count")
+            result  = result.sort_values("Count", ascending=False)
             preview = result.head(15).to_string(index=False)
             return f"📊 **Count by '{group_col}':**\n\n```\n{preview}\n```"
         elif value_col:
-            result = df.groupby(group_col)[value_col].agg(agg).reset_index()
+            result  = df.groupby(group_col)[value_col].agg(agg).reset_index()
             result.columns = [group_col, f"{agg_label} of {value_col}"]
-            result = result.sort_values(result.columns[1], ascending=False)
+            result  = result.sort_values(result.columns[1], ascending=False)
             preview = result.head(15).to_string(index=False)
             return f"📊 **{agg_label} of '{value_col}' by '{group_col}':**\n\n```\n{preview}\n```"
         else:
-            result = df.groupby(group_col).size().reset_index(name="Count")
+            result  = df.groupby(group_col).size().reset_index(name="Count")
             preview = result.sort_values("Count", ascending=False).head(15).to_string(index=False)
             return f"📊 **Count by '{group_col}':**\n\n```\n{preview}\n```"
     except Exception as e:
@@ -513,8 +542,8 @@ def get_groupby(df: pd.DataFrame, query: str) -> str:
 
 
 def get_sample(df: pd.DataFrame, query: str) -> str:
-    match = re.search(r"\b(\d+)\b", query)
-    n     = min(int(match.group(1)) if match else 5, 20)
+    match  = re.search(r"\b(\d+)\b", query)
+    n      = min(int(match.group(1)) if match else 5, 20)
     sample = df.sample(n=min(n, len(df)), random_state=42)
     return f"🎲 **Random sample ({n} rows):**\n\n```\n{sample.to_string(index=False)}\n```"
 
@@ -525,15 +554,14 @@ def get_correlation(df: pd.DataFrame, query: str) -> str:
         return "⚠️ No numeric columns to correlate."
     c1, c2 = detect_two_columns(num_df, query)
     if c1 and c2:
-        val = num_df[c1].corr(num_df[c2])
-        strength = ("strong" if abs(val) > 0.7 else "moderate" if abs(val) > 0.4 else "weak")
+        val       = num_df[c1].corr(num_df[c2])
+        strength  = "strong" if abs(val) > 0.7 else "moderate" if abs(val) > 0.4 else "weak"
         direction = "positive" if val > 0 else "negative"
         return (
             f"📈 **Correlation: '{c1}' vs '{c2}'**\n"
             f"• Pearson r = **{val:.4f}**\n"
             f"• Strength: {strength} {direction} correlation"
         )
-    # Full matrix
     corr = num_df.corr().round(3)
     return f"📈 **Correlation Matrix:**\n\n```\n{corr.to_string()}\n```"
 
@@ -572,8 +600,7 @@ def chart_line(df: pd.DataFrame, col: str) -> str | None:
         series = pd.to_numeric(df[col], errors="coerce").dropna()
         fig, ax = plt.subplots(figsize=(9, 4), facecolor="#FAFAFA")
         ax.plot(series.values[:400], color=_PALETTE[0], linewidth=1.8, alpha=0.9)
-        ax.fill_between(range(min(400, len(series))), series.values[:400],
-                        alpha=0.12, color=_PALETTE[0])
+        ax.fill_between(range(min(400, len(series))), series.values[:400], alpha=0.12, color=_PALETTE[0])
         _style_ax(ax, f"Trend of '{col}'")
         ax.set_ylabel(col, fontsize=10)
         ax.set_xlabel("Index", fontsize=10)
@@ -583,7 +610,6 @@ def chart_line(df: pd.DataFrame, col: str) -> str | None:
 
 
 def chart_auto(df: pd.DataFrame, col: str) -> str | None:
-    """Pick bar or line automatically."""
     is_num = pd.to_numeric(df[col], errors="coerce").notna().sum() > len(df) * 0.5
     if not is_num or df[col].nunique() <= 20:
         return chart_bar(df, col)
@@ -597,13 +623,9 @@ def chart_pie(df: pd.DataFrame, col: str) -> str | None:
             return None
         fig, ax = plt.subplots(figsize=(7, 6), facecolor="#FAFAFA")
         wedges, texts, autotexts = ax.pie(
-            counts.values,
-            labels=counts.index,
-            autopct="%1.1f%%",
-            startangle=140,
+            counts.values, labels=counts.index, autopct="%1.1f%%", startangle=140,
             colors=[_PALETTE[i % len(_PALETTE)] for i in range(len(counts))],
-            pctdistance=0.82,
-            wedgeprops={"edgecolor": "white", "linewidth": 1.5},
+            pctdistance=0.82, wedgeprops={"edgecolor": "white", "linewidth": 1.5},
         )
         for t in autotexts:
             t.set_fontsize(8)
@@ -634,18 +656,17 @@ def chart_histogram(df: pd.DataFrame, col: str) -> str | None:
 
 def chart_scatter(df: pd.DataFrame, col1: str, col2: str) -> str | None:
     try:
-        x = pd.to_numeric(df[col1], errors="coerce")
-        y = pd.to_numeric(df[col2], errors="coerce")
+        x    = pd.to_numeric(df[col1], errors="coerce")
+        y    = pd.to_numeric(df[col2], errors="coerce")
         mask = x.notna() & y.notna()
         x, y = x[mask], y[mask]
         if len(x) < 2:
             return None
         fig, ax = plt.subplots(figsize=(8, 5), facecolor="#FAFAFA")
         ax.scatter(x, y, color=_PALETTE[0], alpha=0.55, s=30, edgecolors="white", linewidth=0.4)
-        # Trend line
         try:
             import numpy as np
-            m, b  = np.polyfit(x, y, 1)
+            m, b   = np.polyfit(x, y, 1)
             x_line = sorted(x)
             ax.plot(x_line, [m * xi + b for xi in x_line],
                     color=_PALETTE[4], linewidth=1.8, linestyle="--", label="Trend")
@@ -666,14 +687,11 @@ def chart_heatmap(df: pd.DataFrame) -> str | None:
         num_df = df.select_dtypes(include="number")
         if num_df.shape[1] < 2:
             return None
-        corr = num_df.corr()
+        corr   = num_df.corr()
         fig, ax = plt.subplots(figsize=(max(6, len(corr)), max(5, len(corr) - 1)), facecolor="#FAFAFA")
-        sns.heatmap(
-            corr, annot=True, fmt=".2f", cmap="coolwarm",
-            center=0, square=True, linewidths=0.5,
-            annot_kws={"size": 9}, ax=ax,
-            cbar_kws={"shrink": 0.8},
-        )
+        sns.heatmap(corr, annot=True, fmt=".2f", cmap="coolwarm",
+                    center=0, square=True, linewidths=0.5,
+                    annot_kws={"size": 9}, ax=ax, cbar_kws={"shrink": 0.8})
         ax.set_title("Correlation Heatmap", fontsize=13, fontweight="bold", pad=14)
         plt.xticks(rotation=40, ha="right", fontsize=9)
         plt.yticks(rotation=0, fontsize=9)
@@ -683,16 +701,93 @@ def chart_heatmap(df: pd.DataFrame) -> str | None:
 
 
 # ═════════════════════════════════════════════════════════════════════════════
+# NATURAL LANGUAGE → PANDAS QUERY
+# ═════════════════════════════════════════════════════════════════════════════
+
+def natural_language_to_pandas(df: pd.DataFrame, query: str) -> dict:
+    columns     = df.columns.tolist()
+    dtypes      = df.dtypes.apply(str).to_dict()
+    preview     = df.head(3).to_string(index=False)
+    sample_vals = {col: df[col].dropna().unique()[:5].tolist() for col in columns}
+
+    prompt = f"""You are a Python/pandas expert. Convert the user's natural language query into a single pandas expression.
+
+DataFrame variable name: df
+Columns: {columns}
+Data types: {dtypes}
+Sample values per column: {sample_vals}
+First 3 rows:
+{preview}
+
+User query: "{query}"
+
+Rules:
+1. Return ONLY a single pandas expression. No imports, no assignments, no print().
+2. The expression must evaluate to a DataFrame or Series.
+3. Use only: df[...], df.query(...), df[df[...]], df.groupby(...), df.sort_values(...), df.nlargest(...), df.nsmallest(...), df.loc[...]
+4. For string comparisons use .str.contains() or == with exact values from sample_vals.
+5. Do NOT use SQL syntax. Pure pandas only.
+6. If ambiguous, make a reasonable guess.
+
+Return ONLY the pandas expression, nothing else. No explanation, no markdown, no backticks."""
+
+    pandas_expr = _call_gemini(prompt)
+
+    if pandas_expr.startswith("⚠️"):
+        return {"response": pandas_expr, "type": "text"}
+
+    pandas_expr = re.sub(r"```(?:python)?|```", "", pandas_expr).strip()
+
+    blocked = ["import ", "exec(", "eval(", "open(", "os.", "sys.",
+               "subprocess", "shutil", "__", "write", "delete", "drop(inplace"]
+    if any(b in pandas_expr.lower() for b in blocked):
+        return {"response": "❌ That query contains unsafe operations and was blocked.", "type": "text"}
+
+    try:
+        result = eval(pandas_expr, {"__builtins__": {}}, {"df": df, "pd": pd})
+    except Exception as e:
+        return {
+            "response": (
+                f"❌ Could not execute query.\n\n"
+                f"**Expression tried:** `{pandas_expr}`\n\n"
+                f"**Error:** {str(e)}\n\n"
+                f"Try rephrasing, e.g.:\n"
+                f"• _show me rows where salary > 50000_\n"
+                f"• _find all Engineering employees_"
+            ),
+            "type": "text"
+        }
+
+    if isinstance(result, pd.DataFrame):
+        if result.empty:
+            return {"response": f"✅ Query returned **0 rows**.\n\n🔍 `{pandas_expr}`", "type": "text"}
+        preview = result.head(20).to_string(index=False)
+        return {
+            "response": (
+                f"✅ **Query result — {len(result):,} row(s):**\n\n"
+                f"```\n{preview}\n```\n\n"
+                f"🔍 **Expression:** `{pandas_expr}`"
+            ),
+            "type": "text"
+        }
+    elif isinstance(result, pd.Series):
+        return {
+            "response": (
+                f"✅ **Result ({len(result):,} items):**\n\n"
+                f"```\n{result.head(20).to_string()}\n```\n\n"
+                f"🔍 **Expression:** `{pandas_expr}`"
+            ),
+            "type": "text"
+        }
+    else:
+        return {"response": f"✅ **Result:** {result}\n\n🔍 **Expression:** `{pandas_expr}`", "type": "text"}
+
+
+# ═════════════════════════════════════════════════════════════════════════════
 # GEMINI FALLBACK
 # ═════════════════════════════════════════════════════════════════════════════
 
 def gemini_fallback(df: pd.DataFrame, query: str) -> str:
-    if not _GEMINI_KEY:
-        return (
-            "⚠️ Gemini API key not configured.\n"
-            "Add `GEMINI_API_KEY=your-key` to `backend/.env` and restart.\n"
-            "Get a free key at https://aistudio.google.com/app/apikey"
-        )
     columns     = ", ".join(df.columns.tolist())
     shape       = f"{df.shape[0]} rows × {df.shape[1]} columns"
     preview     = df.head(5).to_string(index=False)
@@ -705,19 +800,10 @@ def gemini_fallback(df: pd.DataFrame, query: str) -> str:
         f"Numeric summary:\n{num_summary}\n\n"
         f"First 5 rows:\n{preview}\n\n"
         f"User question: {query}\n\n"
-        "Reply concisely (≤120 words). Use bullet points. "
+        "Reply concisely (<=120 words). Use bullet points. "
         "Base your answer strictly on the data shown. Do not invent values."
     )
-    try:
-        if _gemini_model == "new_sdk":
-            resp = _new_genai_client.models.generate_content(
-                model="gemini-1.5-flash", contents=prompt)
-            return resp.text.strip()
-        else:
-            resp = _gemini_model.generate_content(prompt)
-            return resp.text.strip()
-    except Exception as e:
-        return f"⚠️ Gemini error: {str(e)}"
+    return _call_gemini(prompt)
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -725,168 +811,125 @@ def gemini_fallback(df: pd.DataFrame, query: str) -> str:
 # ═════════════════════════════════════════════════════════════════════════════
 
 def process_query(session_id: str, filename: str | None, query: str) -> dict:
-    """
-    Main chatbot handler.
-    Returns: { response: str, chart: str|None, type: str, download: bytes|None }
-    """
-    # ── Load / retrieve dataset ───────────────────────────────────────────────
     df = get_or_load_session(session_id, filename)
     if df is None:
         return {"response": "❌ No dataset loaded. Please upload a CSV file first.",
                 "chart": None, "type": "error", "download": None}
 
-    # ── Session context ───────────────────────────────────────────────────────
     session  = _sessions.setdefault(session_id, {})
     last_col = session.get("last_column")
-
-    # ── Intent + column ───────────────────────────────────────────────────────
-    intent = detect_intent(query)
-    col    = detect_column(df, query) or last_col
+    intent   = detect_intent(query)
+    col      = detect_column(df, query) or last_col
     if col:
         _sessions[session_id]["last_column"] = col
 
     ok = lambda r, c=None, t="text": {"response": r, "chart": c, "type": t, "download": None}
 
-    # ── Dispatch ──────────────────────────────────────────────────────────────
-
     if intent == "summary":
         return ok(get_summary(df))
-
     elif intent == "clean":
         cleaned, msg = clean_data(df)
         _sessions[session_id]["df"] = cleaned
         return ok(msg)
-
     elif intent == "reset":
         return ok(reset_data(session_id))
-
     elif intent == "columns":
         return ok(get_columns(df))
-
     elif intent == "dtypes":
         return ok(get_dtypes(df))
-
     elif intent == "issues":
         return ok(get_issues(df))
-
     elif intent == "insights":
         return ok(get_insights(df))
-
     elif intent == "sample":
         return ok(get_sample(df, query))
-
     elif intent == "filter":
-        filtered_df, msg = filter_data(df, query)
+        _, msg = filter_data(df, query)
         return ok(msg)
-
     elif intent == "sort":
         return ok(sort_data(df, query, col))
-
     elif intent == "topn":
         return ok(get_topn(df, query, col))
-
     elif intent == "groupby":
         return ok(get_groupby(df, query))
-
     elif intent == "unique":
         target = col or (df.select_dtypes(exclude="number").columns[0]
                          if not df.select_dtypes(exclude="number").empty else df.columns[0])
         return ok(get_unique(df, target))
-
     elif intent == "count":
         return ok(count_rows(df, query))
-
     elif intent == "correlation":
         return ok(get_correlation(df, query))
-
     elif intent == "median":
         if not col:
             return ok("Please specify a column. Example: _median salary_")
         return ok(compute_stat(df, col, "median"))
-
     elif intent == "std":
         if not col:
             return ok("Please specify a column. Example: _std of score_")
         return ok(compute_stat(df, col, "std"))
-
     elif intent == "percentile":
         if not col:
             return ok("Please specify a column. Example: _75th percentile of salary_")
         return ok(get_percentile(df, col, query))
-
     elif intent == "total":
         if not col:
             return ok("Please specify a column. Example: _total sales_")
         return ok(compute_stat(df, col, "sum"))
-
     elif intent == "average":
         if not col:
             return ok("Please specify a column. Example: _average price_")
         return ok(compute_stat(df, col, "mean"))
-
     elif intent == "max":
         if not col:
             return ok("Please specify a column. Example: _max salary_")
         return ok(compute_stat(df, col, "max"))
-
     elif intent == "min":
         if not col:
             return ok("Please specify a column. Example: _min score_")
         return ok(compute_stat(df, col, "min"))
-
     elif intent == "chart":
         target = col or df.columns[0]
         b64    = chart_auto(df, target)
         if b64:
-            return {"response": f"📊 Chart for **{target}**:", "chart": b64,
-                    "type": "chart", "download": None}
+            return {"response": f"📊 Chart for **{target}**:", "chart": b64, "type": "chart", "download": None}
         return ok("⚠️ Could not generate chart.")
-
     elif intent == "linechart":
-        target = col or df.select_dtypes(include="number").columns[0] if not df.select_dtypes(include="number").empty else df.columns[0]
-        b64    = chart_line(df, target)
+        target = col or (df.select_dtypes(include="number").columns[0]
+                         if not df.select_dtypes(include="number").empty else df.columns[0])
+        b64 = chart_line(df, target)
         if b64:
-            return {"response": f"📈 Line chart for **{target}**:", "chart": b64,
-                    "type": "chart", "download": None}
+            return {"response": f"📈 Line chart for **{target}**:", "chart": b64, "type": "chart", "download": None}
         return ok("⚠️ Could not generate line chart.")
-
     elif intent == "pie":
         target = col or (df.select_dtypes(exclude="number").columns[0]
                          if not df.select_dtypes(exclude="number").empty else df.columns[0])
         b64 = chart_pie(df, target)
         if b64:
-            return {"response": f"🥧 Pie chart for **{target}**:", "chart": b64,
-                    "type": "chart", "download": None}
+            return {"response": f"🥧 Pie chart for **{target}**:", "chart": b64, "type": "chart", "download": None}
         return ok("⚠️ Could not generate pie chart. Try a categorical column.")
-
     elif intent == "histogram":
         target = col or (df.select_dtypes(include="number").columns[0]
                          if not df.select_dtypes(include="number").empty else df.columns[0])
         b64 = chart_histogram(df, target)
         if b64:
-            return {"response": f"📊 Histogram of **{target}**:", "chart": b64,
-                    "type": "chart", "download": None}
+            return {"response": f"📊 Histogram of **{target}**:", "chart": b64, "type": "chart", "download": None}
         return ok("⚠️ Could not generate histogram. Column must be numeric.")
-
     elif intent == "scatter":
-        c1, c2 = detect_two_columns(df.select_dtypes(include="number"), query)
+        c1, c2   = detect_two_columns(df.select_dtypes(include="number"), query)
         num_cols = df.select_dtypes(include="number").columns
         if not c1 and len(num_cols) >= 2:
             c1, c2 = num_cols[0], num_cols[1]
         if c1 and c2:
             b64 = chart_scatter(df, c1, c2)
             if b64:
-                return {"response": f"📉 Scatter plot: **{c1}** vs **{c2}**:", "chart": b64,
-                        "type": "chart", "download": None}
+                return {"response": f"📉 Scatter plot: **{c1}** vs **{c2}**:", "chart": b64, "type": "chart", "download": None}
         return ok("⚠️ Need two numeric columns. Example: _scatter age vs salary_")
-
     elif intent == "heatmap":
         b64 = chart_heatmap(df)
         if b64:
-            return {"response": "🌡️ **Correlation Heatmap:**", "chart": b64,
-                    "type": "chart", "download": None}
+            return {"response": "🌡️ **Correlation Heatmap:**", "chart": b64, "type": "chart", "download": None}
         return ok("⚠️ Need at least 2 numeric columns for a heatmap.")
-
     elif intent == "download":
         csv_bytes, msg = export_csv(session_id)
         fname = (session.get("filename") or "dataset").replace(" ", "_")
@@ -894,6 +937,8 @@ def process_query(session_id: str, filename: str | None, query: str) -> dict:
             fname = fname.rsplit(".", 1)[0] + "_cleaned.csv"
         return {"response": msg, "chart": None, "type": "download",
                 "download": csv_bytes, "download_filename": fname}
-
+    elif intent == "sql":
+        result = natural_language_to_pandas(df, query)
+        return {"response": result["response"], "chart": None, "type": result["type"], "download": None}
     else:
         return ok(gemini_fallback(df, query))

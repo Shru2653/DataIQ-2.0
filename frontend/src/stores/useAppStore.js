@@ -21,6 +21,8 @@ export const useAppStore = create(
           ),
         }),
 
+      // FIX 1: selectedFile is now persisted so it survives navigation
+      // Home.jsx → navigate to /dashboard → selectedFile is still set
       selectedFile: null,
       setSelectedFile: (file) => set({ selectedFile: file ?? null }),
       clearSelectedFile: () => set({ selectedFile: null }),
@@ -35,9 +37,11 @@ export const useAppStore = create(
     {
       name: "app-store",
       storage: createJSONStorage(() => localStorage),
+      // FIX 1: Added selectedFile to partialize so it persists across page navigation
       partialize: (state) => ({
-        sidebarOpen: state.sidebarOpen,
-        serverFiles: state.serverFiles,
+        sidebarOpen:  state.sidebarOpen,
+        serverFiles:  state.serverFiles,
+        selectedFile: state.selectedFile,  // ← was missing, caused null on /dashboard
       }),
     },
   ),

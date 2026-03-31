@@ -94,7 +94,7 @@ export default function Home() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [fileTab, setFileTab] = useState("uploaded"); // 'uploaded' | 'cleaned'
   const [selectedOriginal, setSelectedOriginal] = useState("");
-  console.log(datasetsQuery.data);
+  
   // Mutations (React Query)
   const normalize = useNormalize();
   const outliers = useOutliers();
@@ -245,6 +245,7 @@ export default function Home() {
     });
     return map;
   }, [allDatasets]);
+
   // Uploader handler (progress supported)
   const handleUpload = (fileOrFiles) => {
     const file = Array.isArray(fileOrFiles) ? fileOrFiles[0] : fileOrFiles;
@@ -271,20 +272,17 @@ export default function Home() {
       setPdfLoading(true);
       const node = dashboardRef.current;
       if (!node) return;
-      // Render at high scale for clarity
       const canvas = await html2canvas(node, {
         scale: 2,
         backgroundColor: "#ffffff",
         useCORS: true,
       });
-      const pdf = new jsPDF("p", "pt", "a4"); // portrait for more vertical space
+      const pdf = new jsPDF("p", "pt", "a4");
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
-
-      const imgWidth = pageWidth; // full-width
+      const imgWidth = pageWidth;
       const imgHeight = canvas.height * (imgWidth / canvas.width);
 
-      // If single page fits, just add directly
       if (imgHeight <= pageHeight) {
         const imgData = canvas.toDataURL("image/png");
         pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
@@ -292,10 +290,8 @@ export default function Home() {
         return;
       }
 
-      // Multi-page: slice the big canvas into page-sized chunks
-      const pxPageHeight = Math.floor((pageHeight / pageWidth) * canvas.width); // height in source px for one PDF page
+      const pxPageHeight = Math.floor((pageHeight / pageWidth) * canvas.width);
       const totalPages = Math.ceil(canvas.height / pxPageHeight);
-
       const pageCanvas = document.createElement("canvas");
       const pageCtx = pageCanvas.getContext("2d");
       pageCanvas.width = canvas.width;
@@ -306,19 +302,14 @@ export default function Home() {
         const sY = page * pxPageHeight;
         const sW = canvas.width;
         const sH = Math.min(pxPageHeight, canvas.height - sY);
-
-        // Resize page canvas height for last slice
         pageCanvas.height = sH;
         pageCtx.clearRect(0, 0, pageCanvas.width, pageCanvas.height);
         pageCtx.drawImage(canvas, sX, sY, sW, sH, 0, 0, pageCanvas.width, sH);
-
         const imgData = pageCanvas.toDataURL("image/png");
         const renderHeight = (sH / canvas.width) * imgWidth;
-
         if (page > 0) pdf.addPage();
         pdf.addImage(imgData, "PNG", 0, 0, imgWidth, renderHeight);
       }
-
       pdf.save("auto_dashboard.pdf");
     } catch (e) {
       console.error("PDF generation failed:", e);
@@ -327,6 +318,7 @@ export default function Home() {
     }
   };
 
+  // ─── FIX 1: correct endpoint + correct response mapping ──────────────────
   const generateAutoDashboard = async () => {
     try {
       const fileToUse =
@@ -339,10 +331,22 @@ export default function Home() {
       const fname =
         fileToUse.filename || fileToUse.name || fileToUse.id || fileToUse;
       setPreviewLoading(true);
-      const dashRes = await axiosClient.post("/api/auto-dashboard/analyze", {
+
+      // FIX: was "/api/auto-dashboard/analyze" (doesn't exist)
+      //      now "/api/dashboard/auto" (matches dashboard_routes.py)
+      const dashRes = await axiosClient.post("/api/dashboard/auto", {
         filename: fname,
       });
-      setLatestDashboard({ filename: fname, ...dashRes.data });
+
+      // FIX: response is { statistics, schema } — map it correctly
+      // KPIs and charts live inside statistics, not at the top level
+      setLatestDashboard({
+        filename:   fname,
+        statistics: dashRes.data.statistics,
+        schema:     dashRes.data.schema,
+        kpis:       dashRes.data.statistics?.kpis   ?? [],
+        charts:     dashRes.data.statistics?.charts ?? [],
+      });
     } catch (e) {
       alert(
         "Failed to generate dashboard: " +
@@ -354,8 +358,6 @@ export default function Home() {
   };
 
   // Download helper for files served from FastAPI /api/files/cleaned/:filename
-  // Uses axiosClient so the Authorization: Bearer token is included in the request.
-  // A bare <a href> click would skip the request interceptor and always 401.
   const downloadFromTemp = async (filename) => {
     if (!filename) {
       console.warn(
@@ -375,7 +377,6 @@ export default function Home() {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      // Free the object URL after the browser has started the download
       setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
     } catch (err) {
       console.error(
@@ -402,7 +403,6 @@ export default function Home() {
     const first = tableData[0] || {};
     const keys = Object.keys(first);
     const guessX = keys[0];
-    // pick up to 3 numeric-like keys other than x
     const numericKeys = keys
       .filter((k) => k !== guessX)
       .filter((k) => {
@@ -420,7 +420,7 @@ export default function Home() {
     };
   }, [tableData]);
 
-  // Processing steps config (wire your actual handlers)
+  // Processing steps config
   const steps = useMemo(
     () => [
       {
@@ -546,7 +546,6 @@ export default function Home() {
               ? prev.data.preview_data
               : [];
             openPreview({ before: [], after: rows });
-            // Refresh datasets to reflect new cleaned version under the original
             datasetsQuery.refetch?.();
           } catch (e) {
             updateProcessingStep("missing", {
@@ -1168,7 +1167,6 @@ export default function Home() {
                 </p>
               </div>
               <div className="space-y-6">
-                {/* Tabs */}
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setFileTab("uploaded")}
@@ -1192,10 +1190,10 @@ export default function Home() {
                     onDelete={undefined}
                     cleanedCounts={cleanedCounts}
                     onViewCleaned={(file) => {
-                      setSelectedFile(file); // Select the file
+                      setSelectedFile(file);
                       const name = file?.filename || file?.name;
-                      if (name) setSelectedOriginal(name); // Focus cleaned list on this original
-                      setFileTab("cleaned"); // Switch to the 'cleaned' tab
+                      if (name) setSelectedOriginal(name);
+                      setFileTab("cleaned");
                     }}
                   />
                 )}
@@ -1267,28 +1265,24 @@ export default function Home() {
             {/* Auto Dashboard Controls */}
             <section className="w-full">
               <div className="w-full bg-white border border-gray-200 rounded-xl shadow-sm p-8 lg:p-10 flex flex-col md:flex-row md:items-center md:space-x-4 space-y-4 md:space-y-0 justify-between">
-                <div className="text-xl font-semibold text-gray-800">
-                  Generate Auto Dashboard
+                <div>
+                  <div className="text-xl font-semibold text-gray-800">
+                    Generate Auto Dashboard
+                  </div>
+                  {selectedId && (
+                    <div className="text-sm text-gray-500 mt-1">
+                      Selected: <span className="font-medium text-blue-600">{selectedId}</span>
+                    </div>
+                  )}
                 </div>
-                {/* <div className="flex-1">
-                <select
-                  className="w-full md:w-auto border rounded-lg px-3 py-2 text-sm"
-                  value={selectedFile?.filename || selectedId || ''}
-                  onChange={(e) => {
-                    const f = serverFilesList.find((s) => (s.filename || s.name) === e.target.value);
-                    setSelectedFile(f || null);
-                  }}
-                >
-                  <option value="" disabled>Select a file</option>
-                  {serverFilesList.map((f) => (
-                    <option key={f.filename || f.name} value={f.filename || f.name}>{f.filename || f.name}</option>
-                  ))}
-                </select>
-              </div> */}
                 <button
                   onClick={generateAutoDashboard}
-                  disabled={previewLoading || serverFilesList.length === 0}
-                  className={`inline-flex items-center px-4 py-2 rounded-lg text-white ${previewLoading ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"} transition-colors`}
+                  disabled={previewLoading || !selectedId}
+                  className={`inline-flex items-center px-4 py-2 rounded-lg text-white ${
+                    previewLoading || !selectedId
+                      ? "bg-blue-400 cursor-not-allowed"
+                      : "bg-blue-600 hover:bg-blue-700"
+                  } transition-colors`}
                 >
                   {previewLoading ? "Generating..." : "Generate Dashboard"}
                 </button>
@@ -1301,11 +1295,20 @@ export default function Home() {
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-2xl font-bold text-gray-900">
                     Auto Dashboard
+                    {latestDashboard.filename && (
+                      <span className="ml-3 text-base font-normal text-gray-400">
+                        {latestDashboard.filename}
+                      </span>
+                    )}
                   </h2>
                   <button
                     onClick={downloadDashboardPDF}
                     disabled={pdfLoading}
-                    className={`inline-flex items-center px-4 py-2 rounded-lg text-white ${pdfLoading ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"} transition-colors`}
+                    className={`inline-flex items-center px-4 py-2 rounded-lg text-white ${
+                      pdfLoading
+                        ? "bg-blue-400 cursor-not-allowed"
+                        : "bg-blue-600 hover:bg-blue-700"
+                    } transition-colors`}
                   >
                     {pdfLoading ? (
                       <>
@@ -1336,63 +1339,42 @@ export default function Home() {
                     )}
                   </button>
                 </div>
+
                 <div ref={dashboardRef} className="space-y-10">
-                  {/* KPI Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                    {(latestDashboard.kpis || []).map((kpi, idx) => {
-                      const trendIcon =
-                        kpi.trend === "increasing"
-                          ? TrendingUp
-                          : kpi.trend === "decreasing"
-                            ? TrendingDown
-                            : Minus;
-                      const trendColor =
-                        kpi.trend === "increasing"
-                          ? "text-green-600"
-                          : kpi.trend === "decreasing"
-                            ? "text-red-600"
-                            : "text-gray-400";
-                      const TrendIcon = trendIcon;
+                  {/* ── FIX 2: KPI cards now use kpi.label + kpi.value (string) ── */}
+                  {/* The new API returns { label, value, sub, color } not { key, total, avg } */}
+                  {(latestDashboard.kpis || []).length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                      {(latestDashboard.kpis || []).map((kpi, idx) => {
+                        const colorMap = {
+                          blue:   { card: "bg-blue-50 border-blue-200",   value: "text-blue-700"   },
+                          green:  { card: "bg-green-50 border-green-200", value: "text-green-700"  },
+                          amber:  { card: "bg-amber-50 border-amber-200", value: "text-amber-700"  },
+                          red:    { card: "bg-red-50 border-red-200",     value: "text-red-700"    },
+                          purple: { card: "bg-purple-50 border-purple-200", value: "text-purple-700" },
+                        };
+                        const c = colorMap[kpi.color] ?? colorMap.blue;
+                        return (
+                          <div
+                            key={idx}
+                            className={`rounded-xl border p-6 flex flex-col gap-1 ${c.card}`}
+                          >
+                            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide truncate">
+                              {kpi.label}
+                            </div>
+                            <div className={`text-2xl font-bold ${c.value} truncate`}>
+                              {kpi.value}
+                            </div>
+                            {kpi.sub && (
+                              <div className="text-xs text-gray-400 truncate">{kpi.sub}</div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
 
-                      return (
-                        <div
-                          key={idx}
-                          className="bg-white rounded-xl shadow-sm border p-6 lg:p-8 min-h-[200px] hover:shadow-md transition-shadow"
-                        >
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                              {kpi.label || kpi.key}
-                            </div>
-                            <TrendIcon className={`w-4 h-4 ${trendColor}`} />
-                          </div>
-                          <div className="text-2xl font-bold text-gray-900 mb-1">
-                            {formatNumber(kpi.total, kpi.type)}
-                          </div>
-                          {kpi.trend !== "stable" && (
-                            <div
-                              className={`text-xs font-medium ${trendColor}`}
-                            >
-                              {kpi.trend === "increasing" ? "↑" : "↓"}{" "}
-                              {Math.abs(kpi.trend_percent).toFixed(1)}%
-                            </div>
-                          )}
-                          <div className="text-xs text-gray-500 mt-2 space-y-1">
-                            <div>Avg: {formatNumber(kpi.avg, kpi.type)}</div>
-                            <div className="flex justify-between">
-                              <span>
-                                Min: {formatNumber(kpi.min, kpi.type)}
-                              </span>
-                              <span>
-                                Max: {formatNumber(kpi.max, kpi.type)}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Insights Panel */}
+                  {/* Insights Panel (only if insights exist) */}
                   {latestDashboard.insights &&
                     latestDashboard.insights.length > 0 && (
                       <InsightPanel
@@ -1401,40 +1383,55 @@ export default function Home() {
                       />
                     )}
 
-                  {/* Charts Grid */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                    {(latestDashboard.charts || []).map((ch, idx) => (
-                      <div
-                        key={idx}
-                        className={`bg-white rounded-xl shadow-sm border p-6 lg:p-8 ${
-                          ["line", "grouped_bar", "scatter"].includes(ch.type)
-                            ? "lg:col-span-2"
-                            : ""
-                        }`}
-                      >
-                        <div className="text-lg font-semibold text-gray-800 mb-4">
-                          {ch.title}
+                  {/* ── FIX 3: Charts use ch.traces (pre-built Plotly traces) ── */}
+                  {/* Old code passed ch.data + xKey/yKeys — new API returns ch.traces */}
+                  {(latestDashboard.charts || []).length > 0 && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                      {(latestDashboard.charts || []).map((ch, idx) => (
+                        <div
+                          key={idx}
+                          className={`bg-white rounded-xl shadow-sm border p-6 lg:p-8 ${
+                            ["line", "heatmap", "scatter"].includes(ch.type)
+                              ? "lg:col-span-2"
+                              : ""
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2 mb-4">
+                            <div className="text-base font-semibold text-gray-800">
+                              {ch.title}
+                            </div>
+                            {ch.anomaly_message && (
+                              <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 whitespace-nowrap flex-shrink-0">
+                                {ch.anomaly_message}
+                              </span>
+                            )}
+                          </div>
+                          <div className="h-80">
+                            {/*
+                              FIX 3: pass ch.traces directly as the data prop.
+                              ChartPlot detects pre-built traces via the
+                              `looksLikeTraces` check (x/type fields present)
+                              and uses them directly — no xKey/yKeys needed.
+                            */}
+                            <ChartPlot
+                              type={ch.type === "grouped_bar" ? "bar" : ch.type}
+                              data={ch.traces}
+                              title={ch.title}
+                              height={320}
+                              layout={ch.layout ?? {}}
+                            />
+                          </div>
                         </div>
-                        <div className="h-80">
-                          <ChartPlot
-                            type={ch.type === "grouped_bar" ? "bar" : ch.type}
-                            data={ch.data}
-                            xKey={ch.xKey || ch.nameKey}
-                            yKeys={ch.yKeys || [ch.valueKey]}
-                            title={ch.title}
-                            height={320}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
 
-                  {/* Statistics Section */}
+                  {/* Statistics / Schema tabs (existing Dashboard component — unchanged) */}
                   {latestDashboard.statistics && (
                     <Dashboard
                       statistics={latestDashboard.statistics}
                       schema={latestDashboard.schema}
-                      dataQuality={latestDashboard.data_quality}
+                      dataQuality={null}
                     />
                   )}
                 </div>
