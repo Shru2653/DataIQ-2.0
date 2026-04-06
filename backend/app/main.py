@@ -25,6 +25,8 @@ from app.routes.cleaning_recommendations_routes import router as cleaning_recomm
 from app.routes.drift_detection_routes import router as drift_detection_router
 from app.routes.chatbot_routes import router as chatbot_router
 from app.routes.dashboard_routes import router as dashboard_router
+from app.routes.preview_routes import router as preview_router
+from app.routes.ml_routes import router as ml_router
 
 
 app = FastAPI(title="DataIQ Backend", version="0.1.0")
@@ -79,6 +81,6 @@ app.include_router(cleaning_recommendations_router)
 app.include_router(drift_detection_router)
 app.include_router(chatbot_router, prefix="/api/chatbot", tags=["Chatbot"])
 app.include_router(dashboard_router)
+app.include_router(preview_router)
+app.include_router(ml_router)
 
-
-# Note: Do not auto-clean TEMP_DIR on exit to preserve cleaned files
