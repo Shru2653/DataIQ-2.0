@@ -861,6 +861,15 @@ export default function Home() {
         },
         onPreview: async ({ action, filters, settings }) => {
           if (!selectedId) return;
+
+          // If step is already done, show the cached result (with actual action applied)
+          const outlierStep = useAppStore.getState().processingSteps?.outliers;
+          if (outlierStep?.status === "done" && outlierStep?.output?.preview_data) {
+            openPreview({ before: [], after: outlierStep.output.preview_data });
+            return;
+          }
+
+          // Otherwise, show preview with flag action (before execution)
           const methodMap = {
             "IQR Method": "iqr",
             "Z-Score": "zscore",

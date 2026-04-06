@@ -74,16 +74,24 @@ def _load_dataframe_for_processing_user(filename: str, current_user: UserInDB) -
 
 def _select_outlier_columns(df: pd.DataFrame, filters: List[str], settings: OutlierSettings) -> List[str]:
     num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+
+    # Exclude ID-like columns (they're identifiers, not measured values)
+    id_keywords = {'id', 'idx', 'index', 'code', 'zip', 'postal'}
+    filtered_num_cols = [
+        c for c in num_cols
+        if not any(keyword in c.lower() for keyword in id_keywords)
+    ]
+
     if not filters or "Numeric Columns" in filters:
-        candidates = num_cols
+        candidates = filtered_num_cols if filtered_num_cols else num_cols
     else:
         candidates = []
     if "High Variance" in (filters or []):
-        variances = df[num_cols].var(numeric_only=True)
+        variances = df[filtered_num_cols].var(numeric_only=True) if filtered_num_cols else df[num_cols].var(numeric_only=True)
         cutoff = variances.quantile(settings.high_variance_percentile)
         candidates.extend(variances[variances >= cutoff].index.tolist())
     if "Distribution Based" in (filters or []):
-        skew = df[num_cols].skew(numeric_only=True)
+        skew = df[filtered_num_cols].skew(numeric_only=True) if filtered_num_cols else df[num_cols].skew(numeric_only=True)
         candidates.extend(skew[skew.abs() >= settings.skew_threshold].index.tolist())
     unique = []
     seen = set()
@@ -164,6 +172,11 @@ def _apply_outlier_action(df: pd.DataFrame, masks: Dict[str, pd.Series], cols: L
                 upper = med + (k/0.6745) * (mad if mad != 0 else 1)
             else:
                 lower = s.quantile(0.01); upper = s.quantile(0.99)
+            # Cast bounds to match column dtype to avoid type errors
+            col_dtype = df[c].dtype
+            if pd.api.types.is_integer_dtype(col_dtype):
+                lower = int(lower)
+                upper = int(upper)
             df.loc[m & (s < lower), c] = lower
             df.loc[m & (s > upper), c] = upper
     elif action == "remove":
@@ -183,17 +196,23 @@ async def outliers_preview(request: OutlierRequest, current_user: UserInDB = Dep
         cols = _select_outlier_columns(df, request.filters or ["Numeric Columns"], settings)
         masks = _detect_outliers_mask(df, cols, settings)
         df_preview = df.copy()
-        df_preview, _ = _apply_outlier_action(df_preview, masks, cols, OutlierSettings(**{**settings.dict(), "action": "flag"})) if settings.action == "flag" else _apply_outlier_action(df_preview, masks, cols, settings)
+        # For preview, always flag outliers to show which rows are affected
+        df_preview, _ = _apply_outlier_action(df_preview, masks, cols, OutlierSettings(**{**settings.dict(), "action": "flag"}))
         n = max(1, settings.preview_limit)
         preview = df_preview.head(n).fillna("").to_dict(orient="records")
+        # Count unique rows with at least one outlier
+        any_mask = pd.Series(False, index=df.index)
+        for m in masks.values():
+            any_mask = any_mask | m.fillna(False)
+        unique_outlier_rows = int(any_mask.sum())
         return OutlierResponse(
             message="Outlier preview generated",
             rows_before=len(df),
             rows_after=len(df_preview),
-            outliers_flagged=sum(int(m.sum()) for m in masks.values()),
+            outliers_flagged=unique_outlier_rows,
             columns_checked=cols,
             method_used=settings.method,
-            action_applied=settings.action,
+            action_applied="flag",
             new_file=None,
             preview_data=preview,
         )
@@ -203,6 +222,49 @@ async def outliers_preview(request: OutlierRequest, current_user: UserInDB = Dep
         raise HTTPException(status_code=500, detail=f"Error generating outlier preview: {str(e)}")
 
 
+@router.post("/api/outliers/diagnose")
+async def outliers_diagnose(request: OutlierRequest, current_user: UserInDB = Depends(get_current_active_user)):
+    """Diagnostic endpoint to debug outlier detection issues."""
+    try:
+        df = _load_dataframe_for_processing_user(request.filename, current_user)
+        settings = request.settings or OutlierSettings()
+        if request.method:
+            settings.method = request.method
+
+        cols = _select_outlier_columns(df, request.filters or ["Numeric Columns"], settings)
+        masks = _detect_outliers_mask(df, cols, settings)
+
+        # Calculate statistics for each column
+        col_stats = {}
+        for col in cols:
+            outliers_count = masks[col].sum()
+            outlier_indices = df.index[masks[col]].tolist()
+            col_stats[col] = {
+                "outliers_found": int(outliers_count),
+                "outlier_indices": outlier_indices[:10],  # First 10
+                "min_value": float(df[col].min()),
+                "max_value": float(df[col].max()),
+                "mean_value": float(df[col].mean()),
+                "outlier_values": df.loc[masks[col], col].tolist()[:10]
+            }
+
+        return {
+            "message": "Diagnostic report generated",
+            "total_rows": len(df),
+            "total_columns_in_data": len(df.columns),
+            "columns_selected_for_detection": cols,
+            "detection_method": settings.method,
+            "filter_applied": request.filters,
+            "column_statistics": col_stats,
+            "total_rows_with_outliers": int(sum(1 for c in cols if masks[c].sum() > 0))
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Diagnostic error: {str(e)}")
+
+
+
 @router.post("/api/outliers/apply")
 async def outliers_apply(request: OutlierRequest, current_user: UserInDB = Depends(get_current_active_user)):
     try:
@@ -210,10 +272,18 @@ async def outliers_apply(request: OutlierRequest, current_user: UserInDB = Depen
         settings = request.settings or OutlierSettings()
         if request.method:
             settings.method = request.method
+
+        # Debug logging to see what's being sent
+        import sys
+        print(f"DEBUG: Request received - method={request.method}, action={settings.action}", file=sys.stderr)
+        print(f"DEBUG: Settings object - {settings.dict()}", file=sys.stderr)
+
         cols = _select_outlier_columns(df, request.filters or ["Numeric Columns"], settings)
         masks = _detect_outliers_mask(df, cols, settings)
         df_processed = df.copy()
+        print(f"DEBUG: Detected {sum(m.sum() for m in masks.values())} total outliers, action={settings.action}", file=sys.stderr)
         df_processed, flagged = _apply_outlier_action(df_processed, masks, cols, settings)
+        print(f"DEBUG: After action - rows before={len(df)}, rows after={len(df_processed)}, action={settings.action}", file=sys.stderr)
         from datetime import datetime
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         # Ensure naming is based on the root original file, not a previously cleaned name

@@ -1,0 +1,21 @@
+﻿id,name,age,salary,department,join_date,is_active,score,category,notes,salary_is_outlier
+1,John Doe,25,50000.5,Engineering,2023-01-15,True,85.5,A,Good performer,0
+2,Jane Smith,30,75000.0,Marketing,2022-03-20,True,92.3,A,Excellent work,0
+3,Bob Johnson,35,,Engineering,2021-05-10,False,78.1,B,,0
+4,Alice Brown,28,60000.0,Sales,,True,,A,New hire,0
+5,Charlie Wilson,45,95000.0,Engineering,2020-08-05,True,88.7,A,Senior developer,0
+6,Diana Lee,32,70000.0,Marketing,2022-11-12,True,91.2,A,Team lead,0
+7,Eve Davis,29,55000.0,Sales,2023-02-28,False,82.4,B,Left company,0
+8,Frank Miller,38,85000.0,,2021-09-15,True,87.9,A,Manager,0
+9,Grace Taylor,26,52000.0,Engineering,2023-04-10,True,,B,Junior developer,0
+10,Henry Clark,42,90000.0,Engineering,2020-12-01,True,89.5,A,Architect,0
+11,John Doe,25,50000.5,Engineering,2023-01-15,True,85.5,A,Good performer,0
+12,Ivy Rodriguez,31,68000.0,Marketing,,True,93.1,A,Creative director,0
+13,Jack Anderson,27,,Sales,2023-03-05,False,79.8,B,,0
+14,Kate Thompson,33,72000.0,Engineering,2022-07-18,True,86.3,A,Full stack dev,0
+15,Liam Wilson,29,58000.0,Marketing,invalid-date,True,84.2,B,Social media,0
+16,Mia Garcia,24,45000.0,Sales,2023-05-20,True,,C,Intern,0
+17,Noah Martinez,36,80000.0,Engineering,,True,88.1,A,DevOps engineer,0
+18,Olivia Johnson,30,65000.0,Marketing,2022-09-30,False,90.7,A,Left for better role,0
+19,Paul White,40,92000.0,,2021-01-10,True,87.4,A,Director,0
+20,Quinn Brown,28,56000.0,Sales,2023-01-25,True,81.9,B,Account manager,0

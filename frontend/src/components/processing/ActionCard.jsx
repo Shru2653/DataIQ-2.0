@@ -54,12 +54,30 @@ export default function ActionCard({
     );
   };
 
+  const handleActionChange = (action) => {
+    setSelectedAction(action);
+
+    // Auto-update settings.action for special actions
+    if (action === "Remove Outliers") {
+      setSettings((prev) => ({ ...prev, action: "remove" }));
+    } else if (action === "Replace Outliers" || action === "Replace") {
+      setSettings((prev) => ({ ...prev, action: "replace" }));
+    } else if (action === "Flag Outliers" || action === "Flag") {
+      setSettings((prev) => ({ ...prev, action: "flag" }));
+    }
+  };
+
   const handleSettingChange = (key, value) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleExecute = async () => {
     if (onExecute) {
+      console.log("📤 Executing with:", {
+        action: selectedAction,
+        filters: selectedFilters,
+        settings: settings,
+      });
       await onExecute({
         stepId: card.key,
         action: selectedAction,
@@ -215,7 +233,7 @@ export default function ActionCard({
                         type="radio"
                         name={`action-${card.key}`}
                         checked={selectedAction === action}
-                        onChange={() => setSelectedAction(action)}
+                        onChange={() => handleActionChange(action)}
                         className="w-4 h-4 text-blue-600"
                       />
                       <span className="text-sm text-slate-700">{action}</span>

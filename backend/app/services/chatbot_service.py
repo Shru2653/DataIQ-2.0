@@ -5,12 +5,12 @@ import glob
 import base64
 import warnings
 import pandas as pd
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-import seaborn as sns
 from dotenv import load_dotenv
+
+# Lazy imports for visualization (only imported when charts are generated)
+plt = None
+sns = None
+_matplotlib_available = False
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -248,7 +248,27 @@ _PALETTE = ["#4F8EF7", "#7C3AED", "#10B981", "#F59E0B", "#EF4444",
             "#06B6D4", "#EC4899", "#84CC16", "#F97316", "#6366F1"]
 
 
+def _ensure_matplotlib():
+    """Lazy import matplotlib and seaborn only when needed."""
+    global plt, sns, _matplotlib_available
+    if _matplotlib_available:
+        return True
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt_import
+        import seaborn as sns_import
+        plt = plt_import
+        sns = sns_import
+        _matplotlib_available = True
+        return True
+    except ImportError:
+        return False
+
+
 def _fig_to_b64(fig) -> str:
+    if not _matplotlib_available:
+        return None
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=120, bbox_inches="tight", facecolor=fig.get_facecolor())
     plt.close(fig)
@@ -581,6 +601,8 @@ def export_csv(session_id: str) -> tuple[bytes | None, str]:
 # ═════════════════════════════════════════════════════════════════════════════
 
 def chart_bar(df: pd.DataFrame, col: str) -> str | None:
+    if not _ensure_matplotlib():
+        return None
     try:
         counts = df[col].astype(str).value_counts().head(15)
         fig, ax = plt.subplots(figsize=(9, 4), facecolor="#FAFAFA")
@@ -596,6 +618,8 @@ def chart_bar(df: pd.DataFrame, col: str) -> str | None:
 
 
 def chart_line(df: pd.DataFrame, col: str) -> str | None:
+    if not _ensure_matplotlib():
+        return None
     try:
         series = pd.to_numeric(df[col], errors="coerce").dropna()
         fig, ax = plt.subplots(figsize=(9, 4), facecolor="#FAFAFA")
@@ -617,6 +641,8 @@ def chart_auto(df: pd.DataFrame, col: str) -> str | None:
 
 
 def chart_pie(df: pd.DataFrame, col: str) -> str | None:
+    if not _ensure_matplotlib():
+        return None
     try:
         counts = df[col].astype(str).value_counts().head(10)
         if len(counts) < 2:
@@ -636,6 +662,8 @@ def chart_pie(df: pd.DataFrame, col: str) -> str | None:
 
 
 def chart_histogram(df: pd.DataFrame, col: str) -> str | None:
+    if not _ensure_matplotlib():
+        return None
     try:
         series = pd.to_numeric(df[col], errors="coerce").dropna()
         if series.empty:
@@ -655,6 +683,8 @@ def chart_histogram(df: pd.DataFrame, col: str) -> str | None:
 
 
 def chart_scatter(df: pd.DataFrame, col1: str, col2: str) -> str | None:
+    if not _ensure_matplotlib():
+        return None
     try:
         x    = pd.to_numeric(df[col1], errors="coerce")
         y    = pd.to_numeric(df[col2], errors="coerce")
@@ -683,6 +713,8 @@ def chart_scatter(df: pd.DataFrame, col1: str, col2: str) -> str | None:
 
 
 def chart_heatmap(df: pd.DataFrame) -> str | None:
+    if not _ensure_matplotlib():
+        return None
     try:
         num_df = df.select_dtypes(include="number")
         if num_df.shape[1] < 2:
