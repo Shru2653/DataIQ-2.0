@@ -1,23 +1,32 @@
-import os
-import io
-import re
-import glob
-import base64
-import warnings
-import pandas as pd
+"""
+chatbot_service.py — Hybrid v3
+
+Two-layer routing:
+  Layer 1 — instant local match (no API call) for ~30 clear command patterns
+             e.g. "summary", "clean data", "bar chart", "top 5", "group by"
+  Layer 2 — Gemini classification ONLY when Layer 1 has no match
+             e.g. "what's flying off the shelves?", "who buys the most?"
+
+This keeps quick-action buttons instant and lets free-form questions work too.
+"""
+
+from __future__ import annotations
+
+import io, os, re, glob, json, base64, warnings
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
 import seaborn as sns
+import pandas as pd
 from dotenv import load_dotenv
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
-
 load_dotenv()
 
-# ── Gemini setup (new google.genai SDK) ────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# Gemini client
+# ─────────────────────────────────────────────────────────────────────────────
 _GEMINI_KEY   = os.getenv("GEMINI_API_KEY", "")
 _genai_client = None
 _GEMINI_MODEL = "gemini-2.0-flash"
@@ -29,85 +38,60 @@ if _GEMINI_KEY:
     except Exception:
         _genai_client = None
 
-def _call_gemini(prompt: str) -> str:
-    """Single helper — calls new google.genai SDK with 15s timeout and retry."""
-    if not _GEMINI_KEY or _genai_client is None:
-        return (
-            "⚠️ Gemini API key not configured.\n"
-            "Add `GEMINI_API_KEY=your-key` to `backend/.env` and restart.\n"
-            "Get a free key at https://aistudio.google.com/app/apikey"
-        )
-    import time
-    import concurrent.futures
 
+def _call_gemini(prompt: str, timeout: int = 20) -> str:
+    if not _GEMINI_KEY or _genai_client is None:
+        return json.dumps({"action": "error",
+                           "message": "⚠️ Gemini API key not configured. "
+                                      "Add GEMINI_API_KEY to backend/.env"})
+    import time, concurrent.futures
     for attempt in range(2):
         try:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(
-                    _genai_client.models.generate_content,
-                    model=_GEMINI_MODEL,
-                    contents=prompt,
-                )
-                resp = future.result(timeout=15)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+                future = ex.submit(_genai_client.models.generate_content,
+                                   model=_GEMINI_MODEL, contents=prompt)
+                resp = future.result(timeout=timeout)
             return resp.text.strip()
         except concurrent.futures.TimeoutError:
-            return (
-                "⏱️ Gemini took too long to respond.\n\n"
-                "**Try built-in commands instead:**\n"
-                "• `unique values in CustomerName` — list all customers\n"
-                "• `group by category` — breakdown by category\n"
-                "• `summary` — dataset overview\n"
-                "• Or rephrase and try again"
-            )
+            return json.dumps({"action": "error",
+                               "message": "⏱️ Gemini took too long. "
+                                          "Try a simpler question or try again."})
         except Exception as e:
             err = str(e)
-            if "429" in err or "quota" in err.lower():
-                if attempt < 1:
-                    time.sleep(35)
-                    continue
-                return (
-                    "⚠️ Gemini free tier quota exceeded.\n\n"
-                    "• Wait a minute and try again\n"
-                    "• Use built-in commands (summary, filter, chart, sort etc.)\n"
-                    "• Upgrade at https://ai.dev/rate-limit"
-                )
-            return f"⚠️ Gemini error: {err}"
-    return "⚠️ Gemini unavailable. Please try again shortly."
+            if ("429" in err or "quota" in err.lower()) and attempt < 1:
+                time.sleep(35); continue
+            return json.dumps({"action": "error",
+                               "message": f"⚠️ Gemini error: {err}"})
+    return json.dumps({"action": "error", "message": "⚠️ Gemini unavailable."})
 
 
-# ── Paths ──────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# Paths + sessions
+# ─────────────────────────────────────────────────────────────────────────────
 _BACKEND_DIR  = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 UPLOAD_FOLDER = os.path.join(_BACKEND_DIR, "static", "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-# ── Session store ─────────────────────────────────────────────────────────────
 _sessions: dict = {}
 
 
-# ═════════════════════════════════════════════════════════════════════════════
-# FILE HELPERS
-# ═════════════════════════════════════════════════════════════════════════════
-
 def find_file_path(filename: str) -> str | None:
     direct = os.path.join(UPLOAD_FOLDER, filename)
-    if os.path.exists(direct):
-        return direct
+    if os.path.exists(direct): return direct
     for sub in ("files", "cleaned"):
         m = glob.glob(os.path.join(UPLOAD_FOLDER, "*", sub, filename))
-        if m:
-            return m[0]
+        if m: return m[0]
     m = glob.glob(os.path.join(UPLOAD_FOLDER, "**", filename), recursive=True)
     return m[0] if m else None
 
 
 def load_df(path: str) -> pd.DataFrame:
-    return pd.read_excel(path) if path.endswith((".xlsx", ".xls")) else pd.read_csv(path)
+    return (pd.read_excel(path) if path.endswith((".xlsx", ".xls"))
+            else pd.read_csv(path))
 
 
 def save_uploaded_file(content: bytes, filename: str) -> str:
     path = os.path.join(UPLOAD_FOLDER, filename)
-    with open(path, "wb") as f:
-        f.write(content)
+    with open(path, "wb") as f: f.write(content)
     return path
 
 
@@ -116,158 +100,163 @@ def get_or_load_session(session_id: str, filename: str | None) -> pd.DataFrame |
     if sess and sess.get("df") is not None:
         if not filename or filename == sess.get("filename"):
             return sess["df"]
-    if not filename:
-        return None
+    if not filename: return None
     path = find_file_path(filename)
-    if not path:
-        return None
+    if not path: return None
     try:
         df = load_df(path)
-        _sessions[session_id] = {
-            "df":          df,
-            "original_df": df.copy(),
-            "filename":    filename,
-            "last_column": None,
-        }
+        _sessions[session_id] = {"df": df, "original_df": df.copy(),
+                                 "filename": filename}
         return df
     except Exception:
         return None
 
 
-def get_original_df(session_id: str) -> pd.DataFrame | None:
+def export_csv(session_id: str) -> tuple[bytes | None, str]:
     sess = _sessions.get(session_id, {})
-    return sess.get("original_df")
+    df   = sess.get("df")
+    if df is None: return None, "⚠️ No dataset loaded."
+    buf = io.StringIO()
+    df.to_csv(buf, index=False)
+    return (buf.getvalue().encode(),
+            f"✅ CSV ready — {len(df):,} rows, {len(df.columns)} columns.")
 
 
-# ═════════════════════════════════════════════════════════════════════════════
-# INTENT DETECTION
-# ═════════════════════════════════════════════════════════════════════════════
-
-_INTENTS = {
-    "summary":     ["summary", "overview", "describe", "info", "about", "what is"],
-    "clean":       ["clean", "fix", "remove duplicate", "fill missing", "null", "nan", "duplicate"],
-    "columns":     ["column", "columns", "fields", "field", "header", "headers", "list column"],
-    "filter":      ["filter", "where", "show rows", "rows where", "find rows", "entries where", "records where"],
-    "sort":        ["sort", "order by", "arrange", "rank by", "ranked by"],
-    "topn":        ["top ", "top-", "bottom ", "lowest ", "highest ", "first ", "last "],
-    "groupby":     ["group by", "grouped by", "groupby", "per ", "by each", "breakdown by", "split by"],
-    "unique":      ["unique", "distinct", "different values", "value counts", "how many unique",
-                    "categories in", "all customers", "all products", "all categories",
-                    "list all", "give me all", "show all", "customer names", "product names"],
-    "count":       ["count rows", "count where", "how many rows", "number of rows", "rows matching",
-                    "how many products", "how many categories", "how many customers", "how many orders"],
-    "correlation": ["correlation", "correlate", "relationship between", "correlated"],
-    "median":      ["median"],
-    "std":         ["std", "standard deviation", "variance"],
-    "percentile":  ["percentile", "quantile", "75th", "25th", "90th"],
-    "chart":       ["bar chart", "bar graph", "bar plot"],
-    "pie":         ["pie chart", "pie graph", "pie plot", "pie"],
-    "histogram":   ["histogram", "distribution of", "frequency of"],
-    "scatter":     ["scatter", "scatter plot", "scatter chart", "vs ", " vs "],
-    "heatmap":     ["heatmap", "heat map", "correlation map", "correlation chart"],
-    "linechart":   ["line chart", "line graph", "line plot", "trend chart", "trend of", "trend over"],
-    "total":       ["total", "sum of", "sum "],
-    "average":     ["average", "mean of", "mean ", "avg"],
-    "max":         ["max ", "maximum", "highest value", "largest"],
-    "min":         ["min ", "minimum", "lowest value", "smallest"],
-    "insights":    ["insight", "insights", "analyze", "analysis", "tell me about", "key findings"],
-    "issues":      ["issue", "issues", "problem", "problems", "check", "quality", "errors"],
-    "download":    ["download", "export", "save", "get csv", "get file"],
-    "sample":      ["sample", "random rows", "show me some", "preview"],
-    "reset":       ["reset", "restore", "original data", "undo clean"],
-    "dtypes":      ["data type", "datatypes", "dtype", "types of column"],
-    "sql":         ["select ", "query ", "sql ", "where clause", "fetch rows",
-                    "give me rows", "show me records", "find all", "get all",
-                    "retrieve", "pull rows", "nl query"],
-}
-
-
-def detect_intent(query: str) -> str:
-    q = query.lower()
-    for intent in ("sql",
-                   "groupby", "filter", "topn", "correlation", "heatmap",
-                   "histogram", "scatter", "linechart", "pie", "chart",
-                   "sort", "unique", "count", "percentile", "median", "std",
-                   "download", "reset", "sample", "dtypes",
-                   "summary", "clean", "columns", "insights", "issues",
-                   "total", "average", "max", "min"):
-        if any(kw in q for kw in _INTENTS[intent]):
-            return intent
-    return "gemini"
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# COLUMN DETECTION
-# ═════════════════════════════════════════════════════════════════════════════
-
-def detect_column(df: pd.DataFrame, query: str) -> str | None:
-    q = query.lower()
-    cols = df.columns.tolist()
-    for col in cols:
-        if col.lower() == q:
-            return col
-    for col in cols:
-        if col.lower() in q:
-            return col
-    words = [w for w in re.split(r"[\s,]+", q) if len(w) > 2]
-    for col in cols:
-        for w in words:
-            if w in col.lower():
-                return col
-    return None
-
-
-def detect_two_columns(df: pd.DataFrame, query: str) -> tuple[str | None, str | None]:
-    q = query.lower()
-    cols = df.columns.tolist()
-    found = []
-    for col in cols:
-        if col.lower() in q and col not in found:
-            found.append(col)
-        if len(found) == 2:
-            break
-    if len(found) < 2:
-        words = [w for w in re.split(r"[\s,]+", q) if len(w) > 2]
-        for col in cols:
-            for w in words:
-                if w in col.lower() and col not in found:
-                    found.append(col)
-                    break
-            if len(found) == 2:
-                break
-    c1 = found[0] if len(found) > 0 else None
-    c2 = found[1] if len(found) > 1 else None
-    return c1, c2
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# CHART HELPER
-# ═════════════════════════════════════════════════════════════════════════════
-
-_PALETTE = ["#4F8EF7", "#7C3AED", "#10B981", "#F59E0B", "#EF4444",
-            "#06B6D4", "#EC4899", "#84CC16", "#F97316", "#6366F1"]
-
+# ─────────────────────────────────────────────────────────────────────────────
+# Chart helpers
+# ─────────────────────────────────────────────────────────────────────────────
+_PALETTE = ["#4F8EF7","#7C3AED","#10B981","#F59E0B","#EF4444",
+            "#06B6D4","#EC4899","#84CC16","#F97316","#6366F1"]
 
 def _fig_to_b64(fig) -> str:
     buf = io.BytesIO()
-    fig.savefig(buf, format="png", dpi=120, bbox_inches="tight", facecolor=fig.get_facecolor())
-    plt.close(fig)
-    buf.seek(0)
-    return base64.b64encode(buf.read()).decode("utf-8")
-
+    fig.savefig(buf, format="png", dpi=120, bbox_inches="tight",
+                facecolor=fig.get_facecolor())
+    plt.close(fig); buf.seek(0)
+    return base64.b64encode(buf.read()).decode()
 
 def _style_ax(ax, title: str):
     ax.set_title(title, fontsize=13, fontweight="bold", pad=12)
     ax.grid(axis="y", linestyle="--", alpha=0.35)
-    ax.spines[["top", "right"]].set_visible(False)
+    ax.spines[["top","right"]].set_visible(False)
     ax.set_facecolor("#FAFAFA")
 
+def _chart_bar(df, col):
+    counts = df[col].astype(str).value_counts().head(15)
+    fig, ax = plt.subplots(figsize=(9,4), facecolor="#FAFAFA")
+    ax.bar(counts.index, counts.values,
+           color=[_PALETTE[i%len(_PALETTE)] for i in range(len(counts))],
+           edgecolor="white", linewidth=0.8)
+    _style_ax(ax, f"Distribution of '{col}'")
+    ax.set_xlabel(col); ax.set_ylabel("Count")
+    plt.xticks(rotation=40, ha="right", fontsize=8)
+    return _fig_to_b64(fig)
 
-# ═════════════════════════════════════════════════════════════════════════════
-# FEATURE FUNCTIONS
-# ═════════════════════════════════════════════════════════════════════════════
+def _chart_line(df, col):
+    s = pd.to_numeric(df[col], errors="coerce").dropna()
+    fig, ax = plt.subplots(figsize=(9,4), facecolor="#FAFAFA")
+    ax.plot(s.values[:500], color=_PALETTE[0], linewidth=1.8)
+    ax.fill_between(range(min(500,len(s))), s.values[:500],
+                    alpha=0.12, color=_PALETTE[0])
+    _style_ax(ax, f"Trend of '{col}'")
+    ax.set_ylabel(col); ax.set_xlabel("Index")
+    return _fig_to_b64(fig)
 
-def get_summary(df: pd.DataFrame) -> str:
+def _chart_pie(df, col):
+    counts = df[col].astype(str).value_counts().head(10)
+    if len(counts) < 2: return None
+    fig, ax = plt.subplots(figsize=(7,6), facecolor="#FAFAFA")
+    ax.pie(counts.values, labels=counts.index, autopct="%1.1f%%",
+           startangle=140,
+           colors=[_PALETTE[i%len(_PALETTE)] for i in range(len(counts))],
+           pctdistance=0.82, wedgeprops={"edgecolor":"white","linewidth":1.5})
+    ax.set_title(f"Breakdown of '{col}'", fontsize=13, fontweight="bold", pad=14)
+    return _fig_to_b64(fig)
+
+def _chart_histogram(df, col):
+    s = pd.to_numeric(df[col], errors="coerce").dropna()
+    if s.empty: return None
+    fig, ax = plt.subplots(figsize=(9,4), facecolor="#FAFAFA")
+    ax.hist(s, bins=min(30, max(10, len(s)//10)),
+            color=_PALETTE[1], edgecolor="white", linewidth=0.6, alpha=0.9)
+    ax.axvline(s.mean(),   color="#EF4444", linewidth=1.8,
+               linestyle="--", label=f"Mean: {s.mean():.2f}")
+    ax.axvline(s.median(), color="#10B981", linewidth=1.8,
+               linestyle=":",  label=f"Median: {s.median():.2f}")
+    _style_ax(ax, f"Histogram of '{col}'")
+    ax.set_xlabel(col); ax.set_ylabel("Frequency"); ax.legend(fontsize=9)
+    return _fig_to_b64(fig)
+
+def _chart_scatter(df, col1, col2):
+    x = pd.to_numeric(df[col1], errors="coerce")
+    y = pd.to_numeric(df[col2], errors="coerce")
+    mask = x.notna() & y.notna()
+    x, y = x[mask], y[mask]
+    if len(x) < 2: return None
+    fig, ax = plt.subplots(figsize=(8,5), facecolor="#FAFAFA")
+    ax.scatter(x, y, color=_PALETTE[0], alpha=0.55,
+               s=30, edgecolors="white", linewidth=0.4)
+    try:
+        import numpy as np
+        m, b = np.polyfit(x, y, 1)
+        ax.plot(sorted(x), [m*xi+b for xi in sorted(x)],
+                color=_PALETTE[4], linewidth=1.8,
+                linestyle="--", label="Trend")
+    except Exception: pass
+    _style_ax(ax, f"'{col1}' vs '{col2}'  (r = {x.corr(y):.3f})")
+    ax.set_xlabel(col1); ax.set_ylabel(col2); ax.legend(fontsize=9)
+    return _fig_to_b64(fig)
+
+def _chart_heatmap(df):
+    num_df = df.select_dtypes(include="number")
+    if num_df.shape[1] < 2: return None
+    corr = num_df.corr()
+    fig, ax = plt.subplots(
+        figsize=(max(6,len(corr)), max(5,len(corr)-1)), facecolor="#FAFAFA")
+    sns.heatmap(corr, annot=True, fmt=".2f", cmap="coolwarm",
+                center=0, square=True, linewidths=0.5,
+                annot_kws={"size":9}, ax=ax, cbar_kws={"shrink":0.8})
+    ax.set_title("Correlation Heatmap", fontsize=13, fontweight="bold", pad=14)
+    plt.xticks(rotation=40, ha="right", fontsize=9)
+    plt.yticks(rotation=0, fontsize=9)
+    return _fig_to_b64(fig)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Column helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _detect_col(df: pd.DataFrame, query: str) -> str | None:
+    q = query.lower()
+    for col in df.columns:
+        if col.lower() == q: return col
+    for col in df.columns:
+        if col.lower() in q: return col
+    words = [w for w in re.split(r"[\s,]+", q) if len(w) > 2]
+    for col in df.columns:
+        for w in words:
+            if w in col.lower(): return col
+    return None
+
+def _detect_two_cols(df: pd.DataFrame, query: str):
+    q, found = query.lower(), []
+    for col in df.columns:
+        if col.lower() in q and col not in found: found.append(col)
+        if len(found) == 2: break
+    if len(found) < 2:
+        for col in df.columns:
+            for w in [w for w in re.split(r"[\s,]+", q) if len(w)>2]:
+                if w in col.lower() and col not in found:
+                    found.append(col); break
+            if len(found) == 2: break
+    return (found[0] if found else None, found[1] if len(found)>1 else None)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LOCAL EXECUTORS  (all instant, no API needed)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _do_summary(df):
     num_cols = df.select_dtypes(include="number").columns.tolist()
     cat_cols = df.select_dtypes(exclude="number").columns.tolist()
     lines = [
@@ -278,14 +267,58 @@ def get_summary(df: pd.DataFrame) -> str:
         f"• **Missing values:** {int(df.isnull().sum().sum()):,}",
         f"• **Duplicate rows:** {int(df.duplicated().sum()):,}",
     ]
-    if num_cols:
-        lines.append(f"• **Numeric columns:** {', '.join(num_cols)}")
-    if cat_cols:
-        lines.append(f"• **Categorical columns:** {', '.join(cat_cols)}")
+    if num_cols: lines.append(f"• **Numeric:** {', '.join(num_cols)}")
+    if cat_cols: lines.append(f"• **Categorical:** {', '.join(cat_cols)}")
     return "\n".join(lines)
 
+def _do_columns(df):
+    lines = [f"📋 **Columns ({len(df.columns)}):**"]
+    for i, col in enumerate(df.columns, 1):
+        lines.append(f"  {i}. **{col}** — _{df[col].dtype}_")
+    return "\n".join(lines)
 
-def clean_data(df: pd.DataFrame) -> tuple[pd.DataFrame, str]:
+def _do_dtypes(df):
+    lines = ["🔠 **Column Data Types:**"]
+    for col in df.columns:
+        lines.append(f"  • **{col}**: `{df[col].dtype}` — "
+                     f"{int(df[col].isnull().sum())} missing")
+    return "\n".join(lines)
+
+def _do_issues(df):
+    lines = ["🔍 **Data Quality Report:**\n"]
+    missing = df.isnull().sum()
+    missing = missing[missing > 0]
+    lines.append("✅ No missing values" if missing.empty else
+                 "❌ **Missing values:**")
+    for col, cnt in missing.items():
+        lines.append(f"  • {col}: **{cnt:,}** ({cnt/len(df)*100:.1f}%)")
+    dupes = int(df.duplicated().sum())
+    lines.append("✅ No duplicate rows" if dupes == 0
+                 else f"❌ **Duplicate rows:** {dupes:,}")
+    const_cols = [c for c in df.columns if df[c].nunique() <= 1]
+    if const_cols:
+        lines.append(f"⚠️ **Constant columns:** {', '.join(const_cols)}")
+    return "\n".join(lines)
+
+def _do_insights(df):
+    numeric = df.select_dtypes(include="number")
+    if numeric.empty: return "ℹ️ No numeric columns found."
+    lines = ["💡 **Key Insights:**\n"]
+    for col in numeric.columns:
+        s = numeric[col].dropna()
+        if s.empty: continue
+        lines += [f"**{col}:**",
+                  f"  • Total: {s.sum():,.2f}  |  Avg: {s.mean():,.2f}  "
+                  f"|  Max: {s.max():,.2f}  |  Min: {s.min():,.2f}", ""]
+    return "\n".join(lines)
+
+def _do_sample(df, query):
+    m = re.search(r"\b(\d+)\b", query)
+    n = min(int(m.group(1)) if m else 5, 20)
+    return (f"🎲 **Random sample ({n} rows):**\n\n"
+            f"```\n{df.sample(n=min(n,len(df)),random_state=42).to_string(index=False)}\n```")
+
+def _do_clean(df):
     before_rows    = len(df)
     before_missing = int(df.isnull().sum().sum())
     df = df.drop_duplicates()
@@ -294,521 +327,837 @@ def clean_data(df: pd.DataFrame) -> tuple[pd.DataFrame, str]:
     for col in df.select_dtypes(exclude="number").columns:
         mode = df[col].mode()
         df[col] = df[col].fillna(mode[0] if not mode.empty else "Unknown")
-    removed = before_rows - len(df)
-    filled  = before_missing - int(df.isnull().sum().sum())
-    msg = (
-        "✅ **Data Cleaned Successfully!**\n"
-        f"• Removed **{removed:,}** duplicate rows\n"
-        f"• Filled **{filled:,}** missing values\n"
-        f"  _(numeric → median, text → mode)_"
-    )
-    return df, msg
+    return df, (f"✅ **Data Cleaned!**\n"
+                f"• Removed **{before_rows-len(df):,}** duplicate rows\n"
+                f"• Filled **{before_missing-int(df.isnull().sum().sum()):,}** "
+                f"missing values")
 
-
-def reset_data(session_id: str) -> str:
-    sess = _sessions.get(session_id, {})
-    orig = sess.get("original_df")
-    if orig is None:
-        return "⚠️ No original data found to restore."
+def _do_reset(session_id):
+    orig = _sessions.get(session_id, {}).get("original_df")
+    if orig is None: return "⚠️ No original data to restore."
     _sessions[session_id]["df"] = orig.copy()
     return f"🔄 **Data restored** to original ({len(orig):,} rows)."
 
-
-def get_columns(df: pd.DataFrame) -> str:
-    lines = [f"📋 **Columns ({len(df.columns)}):**"]
-    for i, col in enumerate(df.columns, 1):
-        lines.append(f"  {i}. **{col}** — _{df[col].dtype}_")
-    return "\n".join(lines)
-
-
-def get_dtypes(df: pd.DataFrame) -> str:
-    lines = ["🔠 **Column Data Types:**"]
-    for col in df.columns:
-        null_cnt = int(df[col].isnull().sum())
-        lines.append(f"  • **{col}**: `{df[col].dtype}` — {null_cnt} missing")
-    return "\n".join(lines)
-
-
-def get_issues(df: pd.DataFrame) -> str:
-    lines = ["🔍 **Data Quality Report:**\n"]
-    missing = df.isnull().sum()
-    missing = missing[missing > 0]
-    if missing.empty:
-        lines.append("✅ No missing values found")
-    else:
-        lines.append("❌ **Missing values:**")
-        for col, cnt in missing.items():
-            lines.append(f"  • {col}: **{cnt:,}** ({cnt/len(df)*100:.1f}%)")
-    dupes = int(df.duplicated().sum())
-    lines.append("✅ No duplicate rows" if dupes == 0 else f"❌ **Duplicate rows:** {dupes:,}")
-    const_cols = [c for c in df.columns if df[c].nunique() <= 1]
-    if const_cols:
-        lines.append(f"⚠️ **Constant columns:** {', '.join(const_cols)}")
-    return "\n".join(lines)
-
-
-def get_insights(df: pd.DataFrame) -> str:
-    numeric = df.select_dtypes(include="number")
-    if numeric.empty:
-        return "ℹ️ No numeric columns found."
-    lines = ["💡 **Key Insights:**\n"]
-    for col in numeric.columns:
-        s = numeric[col].dropna()
-        if s.empty:
-            continue
-        lines += [
-            f"**{col}:**",
-            f"  • Total:   {s.sum():>15,.2f}",
-            f"  • Average: {s.mean():>15,.2f}",
-            f"  • Median:  {s.median():>15,.2f}",
-            f"  • Max:     {s.max():>15,.2f}",
-            f"  • Min:     {s.min():>15,.2f}",
-            f"  • Std Dev: {s.std():>15,.2f}",
-            "",
-        ]
-    return "\n".join(lines)
-
-
-def compute_stat(df: pd.DataFrame, col: str, stat: str) -> str:
-    labels = {"sum": "Total", "mean": "Average", "max": "Maximum",
-              "min": "Minimum", "median": "Median", "std": "Std Dev", "var": "Variance"}
-    try:
-        s = pd.to_numeric(df[col], errors="coerce").dropna()
-        if s.empty:
-            return f"⚠️ **{col}** has no numeric values."
-        val = getattr(s, stat)()
-        return f"📊 **{labels.get(stat, stat)} of {col}:** {val:,.4f}"
-    except Exception as e:
-        return f"⚠️ Error: {e}"
-
-
-def get_percentile(df: pd.DataFrame, col: str, query: str) -> str:
-    match = re.search(r"(\d+)(?:th|st|nd|rd)?", query)
-    p = int(match.group(1)) if match else 50
-    try:
-        s = pd.to_numeric(df[col], errors="coerce").dropna()
-        val = s.quantile(p / 100)
-        return f"📊 **{p}th percentile of {col}:** {val:,.4f}"
-    except Exception as e:
-        return f"⚠️ Error: {e}"
-
-
-def get_unique(df: pd.DataFrame, col: str) -> str:
-    counts = df[col].value_counts().head(20)
-    n_unique = df[col].nunique()
-    lines = [f"🔢 **Unique values in '{col}'** ({n_unique:,} total):\n"]
-    for val, cnt in counts.items():
-        pct = cnt / len(df) * 100
-        lines.append(f"  • **{val}**: {cnt:,} ({pct:.1f}%)")
-    if n_unique > 20:
-        lines.append(f"  _…and {n_unique - 20} more_")
-    return "\n".join(lines)
-
-
-def count_rows(df: pd.DataFrame, query: str) -> str:
-    match = re.search(r"(\w[\w\s]*?)\s*(>=|<=|!=|>|<|=|==)\s*(['\"]?[\w\s.]+['\"]?)", query, re.I)
-    if not match:
-        return f"📊 **Total rows:** {len(df):,}"
-    raw_col, op, raw_val = match.group(1).strip(), match.group(2), match.group(3).strip().strip("'\"")
-    col = detect_column(df, raw_col)
+def _do_filter(df, query):
+    m = re.search(
+        r"([a-zA-Z_][\w\s]*?)\s*(>=|<=|!=|>|<|==|=|contains)\s*"
+        r"(['\"]?[\w\s.\-]+['\"]?)", query, re.I)
+    if not m:
+        return "⚠️ Could not parse filter. Try: _filter Price > 100_"
+    raw_col, op, raw_val = (m.group(1).strip(), m.group(2).lower(),
+                            m.group(3).strip().strip("'\""))
+    col = _detect_col(df, raw_col)
     if not col:
-        return f"⚠️ Column **'{raw_col}'** not found. Available: {', '.join(df.columns)}"
-    op_map = {"=": "==", "==": "==", "!=": "!=", ">": ">", "<": "<", ">=": ">=", "<=": "<="}
-    pandas_op = op_map.get(op, "==")
+        return f"⚠️ Column '{raw_col}' not found. Columns: {', '.join(df.columns)}"
     try:
-        series = pd.to_numeric(df[col], errors="coerce")
-        if series.notna().sum() > len(df) * 0.5:
-            result = df[series.map(lambda x: eval(f"{x} {pandas_op} {float(raw_val)}") if pd.notna(x) else False)]
-        else:
-            result = df[df[col].astype(str).str.lower().str.contains(raw_val.lower(), na=False)]
-        return f"📊 **{len(result):,} rows** match `{col} {op} {raw_val}` (out of {len(df):,} total)"
-    except Exception as e:
-        return f"⚠️ Count error: {e}"
-
-
-def filter_data(df: pd.DataFrame, query: str) -> tuple[pd.DataFrame | None, str]:
-    match = re.search(
-        r"([a-zA-Z_][\w\s]*?)\s*(>=|<=|!=|>|<|==|=|contains|startswith|endswith)\s*(['\"]?[\w\s.\-]+['\"]?)",
-        query, re.I
-    )
-    if not match:
-        return None, "⚠️ Could not parse filter. Try: _filter salary > 50000_ or _show rows where dept = Sales_"
-
-    raw_col, op, raw_val = match.group(1).strip(), match.group(2).lower(), match.group(3).strip().strip("'\"")
-    col = detect_column(df, raw_col)
-    if not col:
-        return None, f"⚠️ Column **'{raw_col}'** not found.\nAvailable: {', '.join(df.columns)}"
-
-    try:
-        if op in ("contains",):
+        if op == "contains":
             mask = df[col].astype(str).str.contains(raw_val, case=False, na=False)
-        elif op in ("startswith",):
-            mask = df[col].astype(str).str.startswith(raw_val, na=False)
-        elif op in ("endswith",):
-            mask = df[col].astype(str).str.endswith(raw_val, na=False)
         else:
             series = pd.to_numeric(df[col], errors="coerce")
-            if series.notna().sum() > len(df) * 0.5:
+            if series.notna().sum() > len(df)*0.5:
                 num_val = float(raw_val)
-                op_map  = {"=": "==", "==": "==", "!=": "!=", ">": ">", "<": "<", ">=": ">=", "<=": "<="}
-                mask    = series.map(lambda x: eval(f"{x} {op_map.get(op,'==')} {num_val}") if pd.notna(x) else False)
+                op_map  = {"=":"==","==":"==","!=":"!=",">":">","<":"<",">=":">=","<=":"<="}
+                mask    = series.map(
+                    lambda x, o=op_map.get(op,"=="), v=num_val:
+                    eval(f"{x} {o} {v}") if pd.notna(x) else False)
             else:
                 mask = df[col].astype(str).str.lower() == raw_val.lower()
-
         result = df[mask]
         if result.empty:
-            return None, f"🔍 No rows found where **{col} {op} {raw_val}**."
-
+            return f"🔍 No rows found where **{col} {op} {raw_val}**."
         preview = result.head(10).to_string(index=False)
-        msg = (
-            f"🔍 **Filter: {col} {op} {raw_val}**\n"
-            f"Found **{len(result):,} rows** (showing first 10):\n\n"
-            f"```\n{preview}\n```"
-        )
-        return result, msg
+        return (f"🔍 **{col} {op} {raw_val}** → **{len(result):,} rows** "
+                f"(first 10):\n\n```\n{preview}\n```")
     except Exception as e:
-        return None, f"⚠️ Filter error: {e}"
+        return f"⚠️ Filter error: {e}"
 
-
-def sort_data(df: pd.DataFrame, query: str, col: str | None) -> str:
-    target = col or detect_column(df, query)
+def _do_sort(df, query, col):
+    target = col or _detect_col(df, query)
     if not target:
-        return "⚠️ Please specify a column. Example: _sort by salary_"
-    asc = not any(w in query.lower() for w in ["desc", "descending", "highest", "largest"])
-    sorted_df = df.sort_values(target, ascending=asc).head(15)
-    direction = "ascending ↑" if asc else "descending ↓"
-    preview   = sorted_df[[target] + [c for c in df.columns if c != target][:3]].to_string(index=False)
-    return f"🔃 **Sorted by '{target}'** ({direction}) — top 15:\n\n```\n{preview}\n```"
+        return "⚠️ Specify a column. Example: _sort by Price_"
+    asc = not any(w in query.lower()
+                  for w in ["desc","descending","highest","largest"])
+    result = df.sort_values(target, ascending=asc).head(15)
+    return (f"🔃 **Sorted by '{target}'** "
+            f"({'ascending ↑' if asc else 'descending ↓'}) — top 15:\n\n"
+            f"```\n{result.to_string(index=False)}\n```")
 
-
-def get_topn(df: pd.DataFrame, query: str, col: str | None) -> str:
-    match = re.search(r"\b(\d+)\b", query)
-    n     = int(match.group(1)) if match else 5
-    target = col or detect_column(df, query)
+def _do_topn(df, query, col):
+    m     = re.search(r"\b(\d+)\b", query)
+    n     = int(m.group(1)) if m else 5
+    target = col or _detect_col(df, query)
     if not target:
-        target = df.select_dtypes(include="number").columns[0] if not df.select_dtypes(include="number").empty else df.columns[0]
-    is_bottom = any(w in query.lower() for w in ["bottom", "lowest", "worst", "smallest", "last"])
-    asc       = is_bottom
-    label     = f"Bottom {n}" if is_bottom else f"Top {n}"
-    try:
-        sorted_df = df.sort_values(by=target, ascending=asc).head(n)
-        preview   = sorted_df.to_string(index=False)
-        return f"🏆 **{label} rows by '{target}':**\n\n```\n{preview}\n```"
-    except Exception as e:
-        return f"⚠️ Error: {e}"
+        num = df.select_dtypes(include="number").columns
+        target = num[0] if len(num) else df.columns[0]
+    is_bottom = any(w in query.lower()
+                    for w in ["bottom","lowest","cheapest","worst","smallest","last"])
+    result = df.sort_values(target, ascending=is_bottom).head(n)
+    label  = f"Bottom {n}" if is_bottom else f"Top {n}"
+    return (f"🏆 **{label} by '{target}':**\n\n"
+            f"```\n{result.to_string(index=False)}\n```")
 
-
-def get_groupby(df: pd.DataFrame, query: str) -> str:
+def _do_groupby(df, query):
     q = query.lower()
-    if any(w in q for w in ["sum", "total"]):
-        agg, agg_label = "sum", "Total"
-    elif any(w in q for w in ["average", "mean", "avg"]):
-        agg, agg_label = "mean", "Average"
-    elif any(w in q for w in ["max", "maximum", "highest"]):
-        agg, agg_label = "max", "Max"
-    elif any(w in q for w in ["min", "minimum", "lowest"]):
-        agg, agg_label = "min", "Min"
-    elif any(w in q for w in ["count"]):
-        agg, agg_label = "count", "Count"
-    else:
-        agg, agg_label = "sum", "Total"
+    if any(w in q for w in ["sum","total"]):         agg, label = "sum",   "Total"
+    elif any(w in q for w in ["average","mean","avg"]): agg, label = "mean",  "Average"
+    elif any(w in q for w in ["max","maximum"]):     agg, label = "max",   "Max"
+    elif any(w in q for w in ["min","minimum"]):     agg, label = "min",   "Min"
+    else:                                            agg, label = "count", "Count"
 
-    cat_cols  = df.select_dtypes(exclude="number").columns.tolist()
-    num_cols  = df.select_dtypes(include="number").columns.tolist()
+    ascending = any(w in q for w in ["least","lowest","worst","bottom"])
+
+    cat_cols = df.select_dtypes(exclude="number").columns.tolist()
+    num_cols = df.select_dtypes(include="number").columns.tolist()
     group_col = next((c for c in cat_cols if c.lower() in q), None) or (cat_cols[0] if cat_cols else None)
     value_col = next((c for c in num_cols if c.lower() in q), None) or (num_cols[0] if num_cols else None)
 
     if not group_col:
         return "⚠️ No categorical column found for grouping."
-
     try:
-        if agg == "count":
-            result  = df.groupby(group_col).size().reset_index(name="Count")
-            result  = result.sort_values("Count", ascending=False)
-            preview = result.head(15).to_string(index=False)
-            return f"📊 **Count by '{group_col}':**\n\n```\n{preview}\n```"
-        elif value_col:
-            result  = df.groupby(group_col)[value_col].agg(agg).reset_index()
-            result.columns = [group_col, f"{agg_label} of {value_col}"]
-            result  = result.sort_values(result.columns[1], ascending=False)
-            preview = result.head(15).to_string(index=False)
-            return f"📊 **{agg_label} of '{value_col}' by '{group_col}':**\n\n```\n{preview}\n```"
+        if agg == "count" or not value_col:
+            result = (df.groupby(group_col).size()
+                      .reset_index(name="Count")
+                      .sort_values("Count", ascending=ascending))
+            top = result.iloc[0]
+            icon = "🔻" if ascending else "🏆"
+            best = f"\n\n{icon} **{'Least' if ascending else 'Most'} frequent:** " \
+                   f"{top[group_col]} ({top['Count']:,} times)"
         else:
-            result  = df.groupby(group_col).size().reset_index(name="Count")
-            preview = result.sort_values("Count", ascending=False).head(15).to_string(index=False)
-            return f"📊 **Count by '{group_col}':**\n\n```\n{preview}\n```"
+            result = (df.groupby(group_col)[value_col].agg(agg)
+                      .reset_index()
+                      .sort_values(value_col, ascending=ascending))
+            result.columns = [group_col, f"{label} of {value_col}"]
+            top = result.iloc[0]
+            val_col = result.columns[1]
+            icon = "🔻" if ascending else "🏆"
+            best = f"\n\n{icon} **{'Lowest' if ascending else 'Highest'}:** " \
+                   f"{top[group_col]} ({top[val_col]:,.2f})"
+        preview = result.head(15).to_string(index=False)
+        return (f"📊 **{label} by '{group_col}':**\n\n"
+                f"```\n{preview}\n```{best}")
     except Exception as e:
         return f"⚠️ Group-by error: {e}"
 
+def _do_unique(df, query, col):
+    target = col or _detect_col(df, query)
+    if not target:
+        cat = df.select_dtypes(exclude="number").columns
+        target = cat[0] if len(cat) else df.columns[0]
+    counts   = df[target].value_counts().head(20)
+    n_unique = df[target].nunique()
+    lines    = [f"🔢 **Unique values in '{target}'** ({n_unique:,} total):\n"]
+    for val, cnt in counts.items():
+        lines.append(f"  • **{val}**: {cnt:,} ({cnt/len(df)*100:.1f}%)")
+    if n_unique > 20: lines.append(f"  _…and {n_unique-20} more_")
+    return "\n".join(lines)
 
-def get_sample(df: pd.DataFrame, query: str) -> str:
-    match  = re.search(r"\b(\d+)\b", query)
-    n      = min(int(match.group(1)) if match else 5, 20)
-    sample = df.sample(n=min(n, len(df)), random_state=42)
-    return f"🎲 **Random sample ({n} rows):**\n\n```\n{sample.to_string(index=False)}\n```"
+def _do_stat(df, query, col, stat):
+    target = col or _detect_col(df, query)
+    if not target:
+        num = df.select_dtypes(include="number").columns
+        target = num[0] if len(num) else None
+    if not target: return "⚠️ Specify a column. Example: _total Sales_"
+    labels = {"sum":"Total","mean":"Average","max":"Maximum",
+              "min":"Minimum","median":"Median","std":"Std Dev"}
+    try:
+        s   = pd.to_numeric(df[target], errors="coerce").dropna()
+        val = getattr(s, stat)()
+        return f"📊 **{labels.get(stat,stat)} of '{target}':** **{val:,.4f}**"
+    except Exception as e:
+        return f"⚠️ Error: {e}"
 
+def _do_lookup(df, query):
+    """Handle 'price of X', 'how much is X', 'what does X cost' etc."""
+    q = query.lower()
+    # Extract the search term
+    patterns = [
+        r"(?:price|cost|value|rate|salary|revenue|amount)\s+(?:of|for)\s+(.+)",
+        r"(?:how much (?:is|does|cost))\s+(.+)",
+        r"(?:what (?:is|does))\s+(.+?)(?:\s+(?:cost|price|sell for))?$",
+        r"(?:show|find|get)\s+(?:me\s+)?(.+?)(?:\s+(?:price|cost|value))?$",
+    ]
+    search_term = None
+    for pat in patterns:
+        m = re.search(pat, q, re.I)
+        if m:
+            search_term = m.group(1).strip().rstrip("?").strip()
+            break
+    if not search_term:
+        search_term = re.sub(
+            r"^(what|which|show|find|get|how much|price of|cost of)\s+", "",
+            q).strip().rstrip("?")
 
-def get_correlation(df: pd.DataFrame, query: str) -> str:
+    cat_cols = df.select_dtypes(exclude="number").columns.tolist()
+    num_cols = df.select_dtypes(include="number").columns.tolist()
+
+    # Which numeric col are they asking about?
+    target_num_col = next((c for c in num_cols if c.lower() in q), None)
+
+    matched = pd.DataFrame()
+    for col in cat_cols:
+        mask = df[col].astype(str).str.lower().str.contains(
+            re.escape(search_term.lower()), na=False)
+        if mask.any():
+            matched = df[mask]; break
+
+    if matched.empty:
+        return (f"🔍 No rows found matching **'{search_term}'**.\n"
+                f"Available values: "
+                f"{', '.join(str(v) for v in df[cat_cols[0]].dropna().unique()[:8]) if cat_cols else 'N/A'}")
+
+    if target_num_col:
+        vals = matched[target_num_col].dropna().unique()
+        if len(vals) == 1:
+            v = vals[0]
+            return f"💰 **{target_num_col} of '{search_term}':** **{v:,.2f}**"
+        val_str = ", ".join(f"{v:,.2f}" for v in vals[:5])
+        return f"💰 **{target_num_col} for '{search_term}':** {val_str}"
+
+    show_cols = cat_cols[:2] + num_cols[:4]
+    show_cols = [c for c in show_cols if c in matched.columns]
+    preview   = matched[show_cols].drop_duplicates().head(10).to_string(index=False)
+    return (f"🔍 **'{search_term}'** — {len(matched)} row(s):\n\n"
+            f"```\n{preview}\n```")
+
+def _do_correlation(df, query):
+    c1, c2 = _detect_two_cols(df.select_dtypes(include="number"), query)
     num_df = df.select_dtypes(include="number")
-    if num_df.empty:
-        return "⚠️ No numeric columns to correlate."
-    c1, c2 = detect_two_columns(num_df, query)
+    if num_df.empty: return "⚠️ No numeric columns to correlate."
     if c1 and c2:
-        val       = num_df[c1].corr(num_df[c2])
-        strength  = "strong" if abs(val) > 0.7 else "moderate" if abs(val) > 0.4 else "weak"
-        direction = "positive" if val > 0 else "negative"
-        return (
-            f"📈 **Correlation: '{c1}' vs '{c2}'**\n"
-            f"• Pearson r = **{val:.4f}**\n"
-            f"• Strength: {strength} {direction} correlation"
-        )
+        val      = pd.to_numeric(df[c1],errors="coerce").corr(
+                   pd.to_numeric(df[c2],errors="coerce"))
+        strength = "strong" if abs(val)>0.7 else "moderate" if abs(val)>0.4 else "weak"
+        return (f"📈 **Correlation: '{c1}' vs '{c2}'**\n"
+                f"• Pearson r = **{val:.4f}**\n"
+                f"• {strength.capitalize()} {'positive' if val>0 else 'negative'} correlation")
     corr = num_df.corr().round(3)
     return f"📈 **Correlation Matrix:**\n\n```\n{corr.to_string()}\n```"
 
 
-def export_csv(session_id: str) -> tuple[bytes | None, str]:
-    sess = _sessions.get(session_id, {})
-    df   = sess.get("df")
-    if df is None:
-        return None, "⚠️ No dataset loaded."
-    buf = io.StringIO()
-    df.to_csv(buf, index=False)
-    return buf.getvalue().encode("utf-8"), f"✅ CSV ready — {len(df):,} rows, {len(df.columns)} columns."
+# ─────────────────────────────────────────────────────────────────────────────
+# LAYER 1 — fast local routing (no API call)
+# Uses broad semantic matching so natural language works without exact keywords.
+# Returns dict | None  —  None means "fall through to Gemini"
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _local_route(session_id: str, df: pd.DataFrame, query: str) -> dict | None:
+    q   = query.lower().strip()
+    col = _detect_col(df, query)
+    num_cols = df.select_dtypes(include="number").columns
+    cat_cols = df.select_dtypes(exclude="number").columns
+    ok  = lambda r, c=None, t="text": {"response":r,"chart":c,"type":t,"download":None}
+
+    # ── helpers ───────────────────────────────────────────────────────────────
+    def _best_num():
+        return num_cols[0] if len(num_cols) else df.columns[0]
+    def _best_cat():
+        return cat_cols[0] if len(cat_cols) else df.columns[0]
+    def _price_col():
+        # find a column whose name suggests price / cost / amount
+        for c in num_cols:
+            if any(w in c.lower() for w in
+                   ["price","cost","amount","value","rate","fee","salary",
+                    "revenue","sales","total","spend"]):
+                return c
+        return num_cols[0] if len(num_cols) else None
+    def _name_col():
+        # find a column whose name suggests a product/item name
+        for c in cat_cols:
+            if any(w in c.lower() for w in
+                   ["product","item","name","title","desc","sku","service",
+                    "category","type","brand"]):
+                return c
+        return cat_cols[0] if len(cat_cols) else None
+
+    # ── DATASET INFO ──────────────────────────────────────────────────────────
+    if _any(q, ["summary","overview","describe","info","about the data",
+                "what is this","tell me about","dataset info","what's in",
+                "what data","explain the data","show me the data"]):
+        return ok(_do_summary(df))
+
+    if _any(q, ["column","columns","fields","field","header","what are the",
+                "list column","show column","what column","attributes"]):
+        return ok(_do_columns(df))
+
+    if _any(q, ["data type","dtype","type of column","column type"]):
+        return ok(_do_dtypes(df))
+
+    if _any(q, ["issue","issues","problem","quality","missing","null","duplicate",
+                "check","error","clean check","data health","anomal"]):
+        return ok(_do_issues(df))
+
+    if _any(q, ["insight","key finding","analyz","important","highlight",
+                "tell me","what stand","what's interesting","interesting fact"]):
+        return ok(_do_insights(df))
+
+    if _any(q, ["sample","random","few rows","some rows","example rows",
+                "preview","show me some","peek"]):
+        return ok(_do_sample(df, query))
+
+    if _any(q, ["clean","fix","remove duplicate","fill missing","handle null",
+                "tidy","scrub","prep the data"]):
+        cleaned, msg = _do_clean(df)
+        _sessions[session_id]["df"] = cleaned
+        return ok(msg)
+
+    if _any(q, ["reset","restore","undo","original","revert","go back"]):
+        return ok(_do_reset(session_id))
+
+    if _any(q, ["download","export","save","get csv","get file"]):
+        csv_bytes, msg = export_csv(session_id)
+        fname = _sessions.get(session_id,{}).get("filename","dataset.csv")
+        if not fname.endswith(".csv"):
+            fname = fname.rsplit(".",1)[0] + "_cleaned.csv"
+        return {"response":msg,"chart":None,"type":"download",
+                "download":csv_bytes,"download_filename":fname}
+
+    # ── LISTING / SHOWING ALL VALUES ──────────────────────────────────────────
+    # "give me product list", "show all customers", "list of categories"
+    if _any(q, ["list","all ","show all","give me all","what are all",
+                "show me all","every "]):
+        # if a column name is mentioned, show unique values for it
+        if col:
+            return ok(_do_unique(df, query, col))
+        # generic list request without a column → columns overview
+        return ok(_do_columns(df))
+
+    if _any(q, ["unique","distinct","different value","value count",
+                "how many unique"]):
+        return ok(_do_unique(df, query, col))
+
+    # ── CHEAP / EXPENSIVE / PRICE RANGE ──────────────────────────────────────
+    # "show me the cheap stuff", "what's affordable", "most expensive items"
+    if _any(q, ["cheap","inexpensive","affordable","low price","low cost",
+                "budget","least expensive","lowest price"]):
+        pc = _price_col()
+        if pc:
+            return ok(_do_topn(df, "bottom 10 " + pc, pc))
+        return ok(_do_topn(df, "bottom 10", col))
+
+    if _any(q, ["expensive","pricey","costly","high price","most expensive",
+                "highest price","luxury","premium"]):
+        pc = _price_col()
+        if pc:
+            return ok(_do_topn(df, "top 10 " + pc, pc))
+        return ok(_do_topn(df, "top 10", col))
+
+    # ── FILTER ────────────────────────────────────────────────────────────────
+    if _any(q, ["filter","where","show rows","rows where","find rows",
+                "entries where","records where","only show","just show"]):
+        return ok(_do_filter(df, query))
+
+    # ── SORT ──────────────────────────────────────────────────────────────────
+    if _any(q, ["sort","order by","arrange","rank by","ranked"]):
+        return ok(_do_sort(df, query, col))
+
+    # ── TOP N / BOTTOM N ─────────────────────────────────────────────────────
+    if re.search(r"\btop\s*\d*\b|\bbottom\s*\d*\b|\bhighest\b|\blowest\b"
+                 r"|\blargest\b|\bsmallest\b|\bbest\b|\bworst\b", q):
+        return ok(_do_topn(df, query, col))
+
+    # ── POPULARITY / FREQUENCY / BEST SELLER ─────────────────────────────────
+    # "which product sells most", "best selling", "what's popular", "top category"
+    if _any(q, ["most popular","most common","most bought","most purchased",
+                "most sold","most frequent","best sell","top sell","bestsell",
+                "which product","which category","which customer","which item",
+                "what sell","what product","what category","what item",
+                "least popular","least common","least bought","least sold",
+                "worst sell","slowest","flies off","popular item","trending"]):
+        return ok(_do_groupby(df, query))
+
+    if _any(q, ["group by","groupby","breakdown","split by","per ","by each",
+                "by category","by product","by customer","by region","by type"]):
+        return ok(_do_groupby(df, query))
+
+    # ── STATS ─────────────────────────────────────────────────────────────────
+    if _any(q, ["total","sum of","sum "]):
+        return ok(_do_stat(df, query, col, "sum"))
+    if _any(q, ["average","mean of","mean ","avg ","avg of"]):
+        return ok(_do_stat(df, query, col, "mean"))
+    if re.search(r"\bmax\b|\bmaximum\b|\bhighest value\b", q):
+        return ok(_do_stat(df, query, col, "max"))
+    if re.search(r"\bmin\b|\bminimum\b|\blowest value\b", q):
+        return ok(_do_stat(df, query, col, "min"))
+    if "median" in q:
+        return ok(_do_stat(df, query, col, "median"))
+    if _any(q, ["std","standard deviation","variance","spread","variability"]):
+        return ok(_do_stat(df, query, col, "std"))
+
+    # ── LOOKUP / PRICE OF SPECIFIC ITEM ──────────────────────────────────────
+    if _any(q, ["price of","cost of","how much is","how much does",
+                "what is the price","what does","price for","value of",
+                "how much for","what cost"]):
+        return ok(_do_lookup(df, query))
+
+    # ── CORRELATION ───────────────────────────────────────────────────────────
+    if _any(q, ["correlation","correlate","relationship between",
+                "related","connection between","depend on"]):
+        return ok(_do_correlation(df, query))
+
+    # ── COUNT ─────────────────────────────────────────────────────────────────
+    if _any(q, ["how many","count","number of","total count","total number"]):
+        return ok(_do_stat(df, query, col, "sum") if col and col in num_cols
+                  else f"📊 **Total rows:** {len(df):,}")
+
+    # ── HOW MUCH / WHAT IS (numeric lookup) ──────────────────────────────────
+    if re.search(r"^(how much|what is the|what's the|tell me the)\s+"
+                 r"(total|average|mean|max|min|sum)", q):
+        if _any(q, ["total","sum"]): return ok(_do_stat(df, query, col, "sum"))
+        if _any(q, ["average","mean"]): return ok(_do_stat(df, query, col, "mean"))
+        if "max" in q: return ok(_do_stat(df, query, col, "max"))
+        if "min" in q: return ok(_do_stat(df, query, col, "min"))
+
+    # ── CHARTS ───────────────────────────────────────────────────────────────
+    if _any(q, ["bar chart","bar graph","bar plot","bar visual"]):
+        target = col or _best_cat()
+        b64 = _chart_bar(df, target)
+        return ok(f"📊 **Bar chart — '{target}'**:", b64, "chart") if b64 \
+               else ok("⚠️ Could not generate bar chart.")
+
+    if _any(q, ["pie chart","pie graph","pie plot","pie visual","donut"]):
+        target = col or _best_cat()
+        b64 = _chart_pie(df, target)
+        return ok(f"🥧 **Pie chart — '{target}'**:", b64, "chart") if b64 \
+               else ok("⚠️ Could not generate pie chart.")
+
+    if _any(q, ["histogram","distribution of","frequency distribution",
+                "spread of","how distributed"]):
+        target = col or _best_num()
+        b64 = _chart_histogram(df, target)
+        return ok(f"📊 **Histogram — '{target}'**:", b64, "chart") if b64 \
+               else ok("⚠️ Could not generate histogram.")
+
+    if _any(q, ["line chart","line graph","trend chart","trend of",
+                "over time","time series","change over"]):
+        target = col or _best_num()
+        b64 = _chart_line(df, target)
+        return ok(f"📈 **Line chart — '{target}'**:", b64, "chart") if b64 \
+               else ok("⚠️ Could not generate line chart.")
+
+    if _any(q, ["scatter","scatter plot","scatter graph","vs ","versus",
+                "compare two","plot two"]):
+        c1, c2 = _detect_two_cols(df.select_dtypes(include="number"), query)
+        if not c1 and len(num_cols) >= 2: c1, c2 = num_cols[0], num_cols[1]
+        if c1 and c2:
+            b64 = _chart_scatter(df, c1, c2)
+            if b64: return ok(f"📉 **Scatter: '{c1}' vs '{c2}'**:", b64, "chart")
+        return ok("⚠️ Need two numeric columns for scatter.")
+
+    if _any(q, ["heatmap","heat map","correlation map","correlation chart",
+                "correlation visual"]):
+        b64 = _chart_heatmap(df)
+        return ok("🌡️ **Correlation Heatmap:**", b64, "chart") if b64 \
+               else ok("⚠️ Need at least 2 numeric columns.")
+
+    # Generic chart request with a column name detected
+    if _any(q, ["chart","graph","plot","visual","show me "]) and col:
+        is_num = pd.to_numeric(df[col], errors="coerce").notna().sum() > len(df)*0.5
+        b64    = (_chart_line(df, col)
+                  if is_num and df[col].nunique() > 20
+                  else _chart_bar(df, col))
+        if b64: return ok(f"📊 **Chart — '{col}'**:", b64, "chart")
+
+    # ── CROSS-COLUMN LOOKUP (last local resort before Gemini) ─────────────────
+    # Handles: "who bought stapler", "customers who ordered laptop",
+    #          "which orders have quantity > 5", "show name where product = mouse"
+    result = _do_cross_lookup(df, query)
+    if result is not None:
+        return ok(result)
+
+    # Not handled locally → fall through to Gemini
+    return None
 
 
-# ═════════════════════════════════════════════════════════════════════════════
-# CHART GENERATORS
-# ═════════════════════════════════════════════════════════════════════════════
-
-def chart_bar(df: pd.DataFrame, col: str) -> str | None:
-    try:
-        counts = df[col].astype(str).value_counts().head(15)
-        fig, ax = plt.subplots(figsize=(9, 4), facecolor="#FAFAFA")
-        colors  = [_PALETTE[i % len(_PALETTE)] for i in range(len(counts))]
-        ax.bar(counts.index, counts.values, color=colors, edgecolor="white", linewidth=0.8)
-        _style_ax(ax, f"Distribution of '{col}'")
-        ax.set_xlabel(col, fontsize=10)
-        ax.set_ylabel("Count", fontsize=10)
-        plt.xticks(rotation=40, ha="right", fontsize=8)
-        return _fig_to_b64(fig)
-    except Exception:
-        return None
+def _any(text: str, keywords: list[str]) -> bool:
+    """True if any keyword appears in text."""
+    return any(k in text for k in keywords)
 
 
-def chart_line(df: pd.DataFrame, col: str) -> str | None:
-    try:
-        series = pd.to_numeric(df[col], errors="coerce").dropna()
-        fig, ax = plt.subplots(figsize=(9, 4), facecolor="#FAFAFA")
-        ax.plot(series.values[:400], color=_PALETTE[0], linewidth=1.8, alpha=0.9)
-        ax.fill_between(range(min(400, len(series))), series.values[:400], alpha=0.12, color=_PALETTE[0])
-        _style_ax(ax, f"Trend of '{col}'")
-        ax.set_ylabel(col, fontsize=10)
-        ax.set_xlabel("Index", fontsize=10)
-        return _fig_to_b64(fig)
-    except Exception:
-        return None
+def _value_matches_query(val: str, q: str) -> bool:
+    """
+    Fuzzy check: does the data value match something in the query?
+    Handles typos, partial words, truncated input.
+      "staple"        matches "Stapler"        (query word is prefix of value)
+      "wireles mouse" matches "Wireless Mouse" (both words match)
+      "jane"          matches "Jane Smith"     (first word exact match)
+      "john doe"      matches "John Doe"       (both words in query)
+    """
+    v = val.lower().strip()
+    if len(v) < 2:
+        return False
+
+    # 1. Exact: value is fully inside the query  e.g. "stapler" in "bought stapler"
+    if v in q:
+        return True
+
+    # 2. Multi-word value: ALL significant words of the value appear in the query
+    #    e.g. "Wireless Mouse" → "wireless" in q AND "mouse" in q
+    val_words = [w for w in v.split() if len(w) >= 3]
+    if len(val_words) >= 2 and all(w in q for w in val_words):
+        return True
+
+    # 3. Single-word value prefix: query contains a word that is a prefix of the value
+    #    BUT require the prefix to be at least 5 chars to avoid "john" → "Johnson"
+    #    e.g. "staple" (6 chars) → prefix of "stapler" ✓
+    #         "john"   (4 chars) → would match "Johnson" ✗ (too short, skip)
+    if len(val_words) == 1:
+        for word in re.split(r"[\s,]+", q):
+            if len(word) >= 5 and v.startswith(word):
+                return True
+
+    # 4. Multi-word value: first word of value fully matches a query word (names)
+    #    e.g. "Jane Smith" → "jane" in query (first name is enough)
+    if val_words and val_words[0] in q and len(val_words[0]) >= 4:
+        return True
+
+    # 5. Query word prefix of any word in a multi-word value (≥5 chars required)
+    #    e.g. "wireles" → prefix of "wireless" inside "Wireless Mouse"
+    if len(val_words) >= 2:
+        for qword in re.split(r"[\s,]+", q):
+            if len(qword) >= 5:
+                for vw in val_words:
+                    if vw.startswith(qword):
+                        return True
+
+    return False
 
 
-def chart_auto(df: pd.DataFrame, col: str) -> str | None:
-    is_num = pd.to_numeric(df[col], errors="coerce").notna().sum() > len(df) * 0.5
-    if not is_num or df[col].nunique() <= 20:
-        return chart_bar(df, col)
-    return chart_line(df, col)
+def _do_cross_lookup(df: pd.DataFrame, query: str) -> str | None:
+    """
+    Handles ANY natural language cross-column query without an API call.
+
+    Works by:
+      1. Scanning every column's unique values against the query using fuzzy matching
+      2. The column whose value best matches → filter column
+      3. Any other column names mentioned in query → columns to display
+      4. Returns filtered rows
+
+    Examples that all work:
+      "give me customername who bought staple"   → Product≈Stapler → show CustomerName
+      "who bought wireless mous"                 → Product≈Wireless Mouse → show all
+      "customers in electronic category"         → Category≈Electronics → show CustomerName
+      "what did john doe order"                  → CustomerName=John Doe → show Product etc.
+      "orders from jane"                         → CustomerName≈Jane Smith → show orders
+    """
+    q    = query.lower().strip()
+    cols = df.columns.tolist()
+
+    # ── Step 1: find all column names mentioned in the query ──────────────────
+    mentioned = [c for c in cols if c.lower() in q]
+
+    # ── Step 2: scan ALL columns for fuzzy-matching values ────────────────────
+    # Score each (column, value) pair — longer matches score higher
+    best_score  = 0
+    filter_col  = None
+    filter_val  = None          # the actual value in the dataframe
+    match_word  = None          # the word from the query that triggered the match
+
+    for c in cols:
+        # Skip pure-numeric columns — no point matching "2" against the query
+        if pd.api.types.is_numeric_dtype(df[c]):
+            continue
+        unique_vals = df[c].dropna().astype(str).unique()
+        for v in unique_vals:
+            if _value_matches_query(v, q):
+                score = len(v)   # longer value = more specific match
+                if score > best_score:
+                    best_score = score
+                    filter_col = c
+                    filter_val = v
+
+    if filter_col is None or filter_val is None:
+        # Last resort: also try numeric columns if no categorical match found
+        # (e.g. "orders with quantity 5")
+        m = re.search(r'\b(\d+(?:\.\d+)?)\b', q)
+        if m:
+            num_q = float(m.group(1))
+            for c in df.select_dtypes(include="number").columns:
+                if c.lower() in q:
+                    # This is a numeric filter — hand off to _do_filter
+                    return None   # let _do_filter or Gemini handle it
+        return None   # nothing found → fall through to Gemini
+
+    # ── Step 3: decide which columns to display ───────────────────────────────
+    # Target = columns explicitly mentioned in query (excluding filter col)
+    target_cols = [c for c in mentioned if c != filter_col]
+
+    if target_cols:
+        show_cols = target_cols
+    else:
+        # Show all columns except the filter column (user knows that already)
+        show_cols = [c for c in cols if c != filter_col]
+        if not show_cols:
+            show_cols = cols
+
+    # ── Step 4: filter the dataframe ─────────────────────────────────────────
+    series = df[filter_col].astype(str).str.lower()
+
+    # Try exact match first, then contains
+    mask = series == filter_val.lower()
+    if not mask.any():
+        mask = series.str.contains(re.escape(filter_val.lower()), na=False)
+
+    result = df[mask]
+
+    if result.empty:
+        avail = ", ".join(df[filter_col].dropna().astype(str).unique()[:8].tolist())
+        return (f"🔍 No rows found matching **'{filter_val}'** in **{filter_col}**.\n"
+                f"Available values: {avail}")
+
+    # ── Step 5: format output ─────────────────────────────────────────────────
+    # Deduplicate show_cols, keep order
+    seen, deduped = set(), []
+    for c in show_cols:
+        if c in df.columns and c not in seen:
+            deduped.append(c); seen.add(c)
+    if not deduped:
+        deduped = list(cols)
+
+    output  = result[deduped].drop_duplicates().head(20)
+    preview = output.to_string(index=False)
+
+    show_label = ", ".join(f"**{c}**" for c in deduped[:3])
+    if len(deduped) > 3:
+        show_label += f" _(+{len(deduped)-3} more)_"
+
+    return (f"🔍 {show_label} where **{filter_col}** = **{filter_val}**"
+            f" — **{len(result)} row(s)**:\n\n"
+            f"```\n{preview}\n```")
 
 
-def chart_pie(df: pd.DataFrame, col: str) -> str | None:
-    try:
-        counts = df[col].astype(str).value_counts().head(10)
-        if len(counts) < 2:
-            return None
-        fig, ax = plt.subplots(figsize=(7, 6), facecolor="#FAFAFA")
-        wedges, texts, autotexts = ax.pie(
-            counts.values, labels=counts.index, autopct="%1.1f%%", startangle=140,
-            colors=[_PALETTE[i % len(_PALETTE)] for i in range(len(counts))],
-            pctdistance=0.82, wedgeprops={"edgecolor": "white", "linewidth": 1.5},
-        )
-        for t in autotexts:
-            t.set_fontsize(8)
-        ax.set_title(f"Breakdown of '{col}'", fontsize=13, fontweight="bold", pad=14)
-        return _fig_to_b64(fig)
-    except Exception:
-        return None
+# ─────────────────────────────────────────────────────────────────────────────
+# LAYER 2 — Gemini classifies + executes unknown natural language questions
+# ─────────────────────────────────────────────────────────────────────────────
+
+_ACTION_SCHEMA = """\
+{ "action": "groupby",      "group_col": "ColName", "value_col": "ColName or null", "agg": "count|sum|mean|max|min", "ascending": false }
+{ "action": "filter",       "column": "ColName", "op": "==|!=|>|<|>=|<=|contains", "value": "..." }
+{ "action": "topn",         "column": "ColName", "n": 5, "ascending": false }
+{ "action": "sort",         "column": "ColName", "ascending": true }
+{ "action": "lookup",       "search_term": "...", "num_column": "ColName or null" }
+{ "action": "stat",         "column": "ColName", "stat": "sum|mean|max|min|median|std" }
+{ "action": "unique",       "column": "ColName" }
+{ "action": "correlation",  "col1": "ColName or null", "col2": "ColName or null" }
+{ "action": "chart",        "chart_type": "bar|line|pie|histogram", "column": "ColName" }
+{ "action": "scatter",      "col1": "ColName", "col2": "ColName" }
+{ "action": "heatmap" }
+{ "action": "pandas_query", "expression": "single pandas expression using df" }
+{ "action": "explain",      "answer": "concise prose answer, max 80 words, from data only" }
+{ "action": "summary" }
+{ "action": "insights" }
+{ "action": "issues" }"""
 
 
-def chart_histogram(df: pd.DataFrame, col: str) -> str | None:
-    try:
-        series = pd.to_numeric(df[col], errors="coerce").dropna()
-        if series.empty:
-            return None
-        fig, ax = plt.subplots(figsize=(9, 4), facecolor="#FAFAFA")
-        n_bins  = min(30, max(10, len(series) // 10))
-        ax.hist(series, bins=n_bins, color=_PALETTE[1], edgecolor="white", linewidth=0.6, alpha=0.9)
-        ax.axvline(series.mean(),   color="#EF4444", linewidth=1.8, linestyle="--", label=f"Mean: {series.mean():.2f}")
-        ax.axvline(series.median(), color="#10B981", linewidth=1.8, linestyle=":",  label=f"Median: {series.median():.2f}")
-        _style_ax(ax, f"Histogram of '{col}'")
-        ax.set_xlabel(col, fontsize=10)
-        ax.set_ylabel("Frequency", fontsize=10)
-        ax.legend(fontsize=9)
-        return _fig_to_b64(fig)
-    except Exception:
-        return None
-
-
-def chart_scatter(df: pd.DataFrame, col1: str, col2: str) -> str | None:
-    try:
-        x    = pd.to_numeric(df[col1], errors="coerce")
-        y    = pd.to_numeric(df[col2], errors="coerce")
-        mask = x.notna() & y.notna()
-        x, y = x[mask], y[mask]
-        if len(x) < 2:
-            return None
-        fig, ax = plt.subplots(figsize=(8, 5), facecolor="#FAFAFA")
-        ax.scatter(x, y, color=_PALETTE[0], alpha=0.55, s=30, edgecolors="white", linewidth=0.4)
-        try:
-            import numpy as np
-            m, b   = np.polyfit(x, y, 1)
-            x_line = sorted(x)
-            ax.plot(x_line, [m * xi + b for xi in x_line],
-                    color=_PALETTE[4], linewidth=1.8, linestyle="--", label="Trend")
-        except Exception:
-            pass
-        corr = x.corr(y)
-        _style_ax(ax, f"'{col1}' vs '{col2}'  (r = {corr:.3f})")
-        ax.set_xlabel(col1, fontsize=10)
-        ax.set_ylabel(col2, fontsize=10)
-        ax.legend(fontsize=9)
-        return _fig_to_b64(fig)
-    except Exception:
-        return None
-
-
-def chart_heatmap(df: pd.DataFrame) -> str | None:
-    try:
-        num_df = df.select_dtypes(include="number")
-        if num_df.shape[1] < 2:
-            return None
-        corr   = num_df.corr()
-        fig, ax = plt.subplots(figsize=(max(6, len(corr)), max(5, len(corr) - 1)), facecolor="#FAFAFA")
-        sns.heatmap(corr, annot=True, fmt=".2f", cmap="coolwarm",
-                    center=0, square=True, linewidths=0.5,
-                    annot_kws={"size": 9}, ax=ax, cbar_kws={"shrink": 0.8})
-        ax.set_title("Correlation Heatmap", fontsize=13, fontweight="bold", pad=14)
-        plt.xticks(rotation=40, ha="right", fontsize=9)
-        plt.yticks(rotation=0, fontsize=9)
-        return _fig_to_b64(fig)
-    except Exception:
-        return None
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# NATURAL LANGUAGE → PANDAS QUERY
-# ═════════════════════════════════════════════════════════════════════════════
-
-def natural_language_to_pandas(df: pd.DataFrame, query: str) -> dict:
+def _gemini_classify_and_run(df: pd.DataFrame, query: str) -> dict:
     columns     = df.columns.tolist()
-    dtypes      = df.dtypes.apply(str).to_dict()
+    num_cols    = df.select_dtypes(include="number").columns.tolist()
+    cat_cols    = df.select_dtypes(exclude="number").columns.tolist()
+    sample_vals = {col: df[col].dropna().unique()[:4].tolist() for col in columns}
     preview     = df.head(3).to_string(index=False)
-    sample_vals = {col: df[col].dropna().unique()[:5].tolist() for col in columns}
 
-    prompt = f"""You are a Python/pandas expert. Convert the user's natural language query into a single pandas expression.
+    prompt = f"""You are a data assistant. The user has a dataset and asks a question in plain English.
+Return a JSON action object so the app can answer it. No explanation, just JSON.
 
-DataFrame variable name: df
+DATASET:
+Shape: {len(df)} rows × {len(df.columns)} columns
 Columns: {columns}
-Data types: {dtypes}
-Sample values per column: {sample_vals}
+Numeric: {num_cols}
+Categorical: {cat_cols}
+Sample values: {sample_vals}
 First 3 rows:
 {preview}
 
-User query: "{query}"
+ACTION OPTIONS:
+{_ACTION_SCHEMA}
 
-Rules:
-1. Return ONLY a single pandas expression. No imports, no assignments, no print().
-2. The expression must evaluate to a DataFrame or Series.
-3. Use only: df[...], df.query(...), df[df[...]], df.groupby(...), df.sort_values(...), df.nlargest(...), df.nsmallest(...), df.loc[...]
-4. For string comparisons use .str.contains() or == with exact values from sample_vals.
-5. Do NOT use SQL syntax. Pure pandas only.
-6. If ambiguous, make a reasonable guess.
+RULES:
+1. Column names must match exactly from: {columns}
+2. For "pandas_query": single pandas expression on variable `df`. No imports, no assignments.
+3. For popularity/frequency questions → groupby with agg="count"
+4. For price/cost/value of a specific item → lookup
+5. For "cheap stuff" / "expensive items" → topn with ascending=true/false on a price column
+6. For "what sells most" / "best product" → groupby count
+7. For pure explanation questions with no data retrieval → explain
 
-Return ONLY the pandas expression, nothing else. No explanation, no markdown, no backticks."""
+USER QUESTION: {query}
 
-    pandas_expr = _call_gemini(prompt)
+JSON:"""
 
-    if pandas_expr.startswith("⚠️"):
-        return {"response": pandas_expr, "type": "text"}
-
-    pandas_expr = re.sub(r"```(?:python)?|```", "", pandas_expr).strip()
-
-    blocked = ["import ", "exec(", "eval(", "open(", "os.", "sys.",
-               "subprocess", "shutil", "__", "write", "delete", "drop(inplace"]
-    if any(b in pandas_expr.lower() for b in blocked):
-        return {"response": "❌ That query contains unsafe operations and was blocked.", "type": "text"}
+    raw = _call_gemini(prompt, timeout=18)
+    raw = re.sub(r"```(?:json)?|```", "", raw).strip()
 
     try:
-        result = eval(pandas_expr, {"__builtins__": {}}, {"df": df, "pd": pd})
-    except Exception as e:
-        return {
-            "response": (
-                f"❌ Could not execute query.\n\n"
-                f"**Expression tried:** `{pandas_expr}`\n\n"
-                f"**Error:** {str(e)}\n\n"
-                f"Try rephrasing, e.g.:\n"
-                f"• _show me rows where salary > 50000_\n"
-                f"• _find all Engineering employees_"
-            ),
-            "type": "text"
-        }
+        action = json.loads(raw)
+        if isinstance(action, dict) and "action" in action:
+            return _run_gemini_action(df, action, query)
+    except Exception:
+        pass
 
-    if isinstance(result, pd.DataFrame):
-        if result.empty:
-            return {"response": f"✅ Query returned **0 rows**.\n\n🔍 `{pandas_expr}`", "type": "text"}
-        preview = result.head(20).to_string(index=False)
-        return {
-            "response": (
-                f"✅ **Query result — {len(result):,} row(s):**\n\n"
-                f"```\n{preview}\n```\n\n"
-                f"🔍 **Expression:** `{pandas_expr}`"
-            ),
-            "type": "text"
-        }
-    elif isinstance(result, pd.Series):
-        return {
-            "response": (
-                f"✅ **Result ({len(result):,} items):**\n\n"
-                f"```\n{result.head(20).to_string()}\n```\n\n"
-                f"🔍 **Expression:** `{pandas_expr}`"
-            ),
-            "type": "text"
-        }
-    else:
-        return {"response": f"✅ **Result:** {result}\n\n🔍 **Expression:** `{pandas_expr}`", "type": "text"}
+    # If JSON parse failed, treat the response as an explain answer
+    if raw and not raw.startswith("{") and not raw.startswith("⚠️"):
+        return {"response": raw, "chart": None, "type": "text", "download": None}
+
+    return {"response": "🤔 I couldn't understand that. Try rephrasing or use the quick buttons.",
+            "chart": None, "type": "text", "download": None}
 
 
-# ═════════════════════════════════════════════════════════════════════════════
-# GEMINI FALLBACK
-# ═════════════════════════════════════════════════════════════════════════════
+def _run_gemini_action(df: pd.DataFrame, action: dict, query: str) -> dict:
+    act = action.get("action", "explain")
+    ok  = lambda r, c=None, t="text": {"response":r,"chart":c,"type":t,"download":None}
 
-def gemini_fallback(df: pd.DataFrame, query: str) -> str:
-    columns     = ", ".join(df.columns.tolist())
-    shape       = f"{df.shape[0]} rows × {df.shape[1]} columns"
-    preview     = df.head(5).to_string(index=False)
-    num_df      = df.select_dtypes(include="number")
-    num_summary = num_df.describe().round(2).to_string() if not num_df.empty else "No numeric columns."
-    prompt = (
-        "You are DataIQ, an expert AI data analyst.\n\n"
-        f"Dataset shape: {shape}\n"
-        f"Columns: {columns}\n\n"
-        f"Numeric summary:\n{num_summary}\n\n"
-        f"First 5 rows:\n{preview}\n\n"
-        f"User question: {query}\n\n"
-        "Reply concisely (<=120 words). Use bullet points. "
-        "Base your answer strictly on the data shown. Do not invent values."
-    )
-    return _call_gemini(prompt)
+    if act == "summary":   return ok(_do_summary(df))
+    if act == "insights":  return ok(_do_insights(df))
+    if act == "issues":    return ok(_do_issues(df))
+
+    if act == "groupby":
+        group_col = action.get("group_col")
+        value_col = action.get("value_col")
+        agg       = action.get("agg", "count")
+        ascending = action.get("ascending", False)
+        if not group_col or group_col not in df.columns:
+            return ok(f"⚠️ Column '{group_col}' not found.")
+        try:
+            if agg == "count" or not value_col or value_col not in df.columns:
+                result = (df.groupby(group_col).size()
+                          .reset_index(name="Count")
+                          .sort_values("Count", ascending=ascending))
+                top  = result.iloc[0]
+                icon = "🔻" if ascending else "🏆"
+                best = (f"\n\n{icon} **{'Least' if ascending else 'Most'} frequent:** "
+                        f"{top[group_col]} ({top['Count']:,} times)")
+            else:
+                result = (df.groupby(group_col)[value_col].agg(agg)
+                          .reset_index()
+                          .sort_values(value_col, ascending=ascending))
+                labels = {"sum":"Total","mean":"Average","max":"Max","min":"Min"}
+                lbl    = labels.get(agg, agg.capitalize())
+                result.columns = [group_col, f"{lbl} of {value_col}"]
+                top     = result.iloc[0]
+                val_col = result.columns[1]
+                icon    = "🔻" if ascending else "🏆"
+                best    = (f"\n\n{icon} **{'Lowest' if ascending else 'Highest'}:** "
+                           f"{top[group_col]} ({top[val_col]:,.2f})")
+            preview = result.head(15).to_string(index=False)
+            return ok(f"📊 **Results by '{group_col}':**\n\n```\n{preview}\n```{best}")
+        except Exception as e:
+            return ok(f"⚠️ Group-by error: {e}")
+
+    if act == "filter":
+        return ok(_do_filter(df, query))   # reuse local parser
+
+    if act == "topn":
+        col = action.get("column")
+        n   = int(action.get("n", 5))
+        asc = action.get("ascending", False)
+        if not col or col not in df.columns:
+            num = df.select_dtypes(include="number").columns
+            col = num[0] if len(num) else df.columns[0]
+        result = df.sort_values(col, ascending=asc).head(n)
+        label  = f"Bottom {n}" if asc else f"Top {n}"
+        return ok(f"🏆 **{label} by '{col}':**\n\n```\n{result.to_string(index=False)}\n```")
+
+    if act == "sort":
+        col = action.get("column")
+        asc = action.get("ascending", True)
+        if not col or col not in df.columns:
+            return ok(f"⚠️ Column '{col}' not found.")
+        result = df.sort_values(col, ascending=asc).head(15)
+        return ok(f"🔃 **Sorted by '{col}'** "
+                  f"({'asc ↑' if asc else 'desc ↓'}):\n\n"
+                  f"```\n{result.to_string(index=False)}\n```")
+
+    if act == "lookup":
+        term    = action.get("search_term","")
+        num_col = action.get("num_column")
+        fake_q  = f"price of {term}" + (f" {num_col}" if num_col else "")
+        return ok(_do_lookup(df, fake_q))
+
+    if act == "stat":
+        col  = action.get("column","")
+        stat = action.get("stat","mean")
+        if col not in df.columns:
+            return ok(f"⚠️ Column '{col}' not found.")
+        return ok(_do_stat(df, query, col, stat))
+
+    if act == "unique":
+        col = action.get("column","")
+        if col not in df.columns:
+            return ok(f"⚠️ Column '{col}' not found.")
+        return ok(_do_unique(df, query, col))
+
+    if act == "correlation":
+        return ok(_do_correlation(df, query))
+
+    if act == "chart":
+        chart_type = action.get("chart_type","bar")
+        col        = action.get("column","")
+        if not col or col not in df.columns:
+            col = (df.select_dtypes(exclude="number").columns[0]
+                   if chart_type in ("bar","pie")
+                   else df.select_dtypes(include="number").columns[0]
+                   if not df.select_dtypes(include="number").empty
+                   else df.columns[0])
+        fn  = {"bar":_chart_bar,"line":_chart_line,
+               "pie":_chart_pie,"histogram":_chart_histogram}.get(chart_type, _chart_bar)
+        b64 = fn(df, col)
+        icons = {"bar":"📊","line":"📈","pie":"🥧","histogram":"📊"}
+        return (ok(f"{icons.get(chart_type,'📊')} **{chart_type.capitalize()} — '{col}'**:",
+                   b64, "chart")
+                if b64 else ok("⚠️ Could not generate chart."))
+
+    if act == "scatter":
+        c1, c2   = action.get("col1"), action.get("col2")
+        num_cols = df.select_dtypes(include="number").columns
+        if not c1 or c1 not in df.columns:
+            c1 = num_cols[0] if len(num_cols) >= 1 else None
+        if not c2 or c2 not in df.columns:
+            c2 = num_cols[1] if len(num_cols) >= 2 else None
+        if c1 and c2:
+            b64 = _chart_scatter(df, c1, c2)
+            if b64: return ok(f"📉 **Scatter: '{c1}' vs '{c2}'**:", b64, "chart")
+        return ok("⚠️ Need two numeric columns for scatter.")
+
+    if act == "heatmap":
+        b64 = _chart_heatmap(df)
+        return (ok("🌡️ **Correlation Heatmap:**", b64, "chart")
+                if b64 else ok("⚠️ Need at least 2 numeric columns."))
+
+    if act == "pandas_query":
+        expr = action.get("expression","").strip()
+        expr = re.sub(r"```(?:python)?|```","",expr).strip()
+        if not expr: return ok("⚠️ No expression returned.")
+        blocked = ["import ","exec(","eval(","open(","os.","sys.",
+                   "subprocess","shutil","__","write(","delete"]
+        if any(b in expr.lower() for b in blocked):
+            return ok("❌ Unsafe operation blocked.")
+        try:
+            result = eval(expr, {"__builtins__":{}}, {"df":df,"pd":pd})
+        except Exception as e:
+            return ok(f"❌ Could not run query.\n**Expression:** `{expr}`\n**Error:** {e}")
+        if isinstance(result, pd.DataFrame):
+            if result.empty: return ok("✅ Query returned **0 rows**.")
+            return ok(f"✅ **{len(result):,} row(s):**\n\n"
+                      f"```\n{result.head(20).to_string(index=False)}\n```")
+        elif isinstance(result, pd.Series):
+            return ok(f"✅ **Result:**\n\n"
+                      f"```\n{result.head(20).to_string()}\n```")
+        else:
+            return ok(f"✅ **Result:** {result}")
+
+    if act == "explain":
+        answer = action.get("answer","")
+        if answer: return ok(answer)
+
+    if act == "error":
+        return ok(action.get("message","⚠️ Something went wrong."))
+
+    return ok("🤔 I understood your question but couldn't map it to an action. "
+              "Try rephrasing or use the quick buttons.")
 
 
-# ═════════════════════════════════════════════════════════════════════════════
+# ─────────────────────────────────────────────────────────────────────────────
 # MAIN ENTRY POINT
-# ═════════════════════════════════════════════════════════════════════════════
+# ─────────────────────────────────────────────────────────────────────────────
 
 def process_query(session_id: str, filename: str | None, query: str) -> dict:
     df = get_or_load_session(session_id, filename)
@@ -816,129 +1165,12 @@ def process_query(session_id: str, filename: str | None, query: str) -> dict:
         return {"response": "❌ No dataset loaded. Please upload a CSV file first.",
                 "chart": None, "type": "error", "download": None}
 
-    session  = _sessions.setdefault(session_id, {})
-    last_col = session.get("last_column")
-    intent   = detect_intent(query)
-    col      = detect_column(df, query) or last_col
-    if col:
-        _sessions[session_id]["last_column"] = col
+    _sessions.setdefault(session_id, {})
 
-    ok = lambda r, c=None, t="text": {"response": r, "chart": c, "type": t, "download": None}
+    # Layer 1 — try instant local routing first
+    result = _local_route(session_id, df, query)
+    if result is not None:
+        return result
 
-    if intent == "summary":
-        return ok(get_summary(df))
-    elif intent == "clean":
-        cleaned, msg = clean_data(df)
-        _sessions[session_id]["df"] = cleaned
-        return ok(msg)
-    elif intent == "reset":
-        return ok(reset_data(session_id))
-    elif intent == "columns":
-        return ok(get_columns(df))
-    elif intent == "dtypes":
-        return ok(get_dtypes(df))
-    elif intent == "issues":
-        return ok(get_issues(df))
-    elif intent == "insights":
-        return ok(get_insights(df))
-    elif intent == "sample":
-        return ok(get_sample(df, query))
-    elif intent == "filter":
-        _, msg = filter_data(df, query)
-        return ok(msg)
-    elif intent == "sort":
-        return ok(sort_data(df, query, col))
-    elif intent == "topn":
-        return ok(get_topn(df, query, col))
-    elif intent == "groupby":
-        return ok(get_groupby(df, query))
-    elif intent == "unique":
-        target = col or (df.select_dtypes(exclude="number").columns[0]
-                         if not df.select_dtypes(exclude="number").empty else df.columns[0])
-        return ok(get_unique(df, target))
-    elif intent == "count":
-        return ok(count_rows(df, query))
-    elif intent == "correlation":
-        return ok(get_correlation(df, query))
-    elif intent == "median":
-        if not col:
-            return ok("Please specify a column. Example: _median salary_")
-        return ok(compute_stat(df, col, "median"))
-    elif intent == "std":
-        if not col:
-            return ok("Please specify a column. Example: _std of score_")
-        return ok(compute_stat(df, col, "std"))
-    elif intent == "percentile":
-        if not col:
-            return ok("Please specify a column. Example: _75th percentile of salary_")
-        return ok(get_percentile(df, col, query))
-    elif intent == "total":
-        if not col:
-            return ok("Please specify a column. Example: _total sales_")
-        return ok(compute_stat(df, col, "sum"))
-    elif intent == "average":
-        if not col:
-            return ok("Please specify a column. Example: _average price_")
-        return ok(compute_stat(df, col, "mean"))
-    elif intent == "max":
-        if not col:
-            return ok("Please specify a column. Example: _max salary_")
-        return ok(compute_stat(df, col, "max"))
-    elif intent == "min":
-        if not col:
-            return ok("Please specify a column. Example: _min score_")
-        return ok(compute_stat(df, col, "min"))
-    elif intent == "chart":
-        target = col or df.columns[0]
-        b64    = chart_auto(df, target)
-        if b64:
-            return {"response": f"📊 Chart for **{target}**:", "chart": b64, "type": "chart", "download": None}
-        return ok("⚠️ Could not generate chart.")
-    elif intent == "linechart":
-        target = col or (df.select_dtypes(include="number").columns[0]
-                         if not df.select_dtypes(include="number").empty else df.columns[0])
-        b64 = chart_line(df, target)
-        if b64:
-            return {"response": f"📈 Line chart for **{target}**:", "chart": b64, "type": "chart", "download": None}
-        return ok("⚠️ Could not generate line chart.")
-    elif intent == "pie":
-        target = col or (df.select_dtypes(exclude="number").columns[0]
-                         if not df.select_dtypes(exclude="number").empty else df.columns[0])
-        b64 = chart_pie(df, target)
-        if b64:
-            return {"response": f"🥧 Pie chart for **{target}**:", "chart": b64, "type": "chart", "download": None}
-        return ok("⚠️ Could not generate pie chart. Try a categorical column.")
-    elif intent == "histogram":
-        target = col or (df.select_dtypes(include="number").columns[0]
-                         if not df.select_dtypes(include="number").empty else df.columns[0])
-        b64 = chart_histogram(df, target)
-        if b64:
-            return {"response": f"📊 Histogram of **{target}**:", "chart": b64, "type": "chart", "download": None}
-        return ok("⚠️ Could not generate histogram. Column must be numeric.")
-    elif intent == "scatter":
-        c1, c2   = detect_two_columns(df.select_dtypes(include="number"), query)
-        num_cols = df.select_dtypes(include="number").columns
-        if not c1 and len(num_cols) >= 2:
-            c1, c2 = num_cols[0], num_cols[1]
-        if c1 and c2:
-            b64 = chart_scatter(df, c1, c2)
-            if b64:
-                return {"response": f"📉 Scatter plot: **{c1}** vs **{c2}**:", "chart": b64, "type": "chart", "download": None}
-        return ok("⚠️ Need two numeric columns. Example: _scatter age vs salary_")
-    elif intent == "heatmap":
-        b64 = chart_heatmap(df)
-        if b64:
-            return {"response": "🌡️ **Correlation Heatmap:**", "chart": b64, "type": "chart", "download": None}
-        return ok("⚠️ Need at least 2 numeric columns for a heatmap.")
-    elif intent == "download":
-        csv_bytes, msg = export_csv(session_id)
-        fname = (session.get("filename") or "dataset").replace(" ", "_")
-        if not fname.endswith(".csv"):
-            fname = fname.rsplit(".", 1)[0] + "_cleaned.csv"
-        return {"response": msg, "chart": None, "type": "download",
-                "download": csv_bytes, "download_filename": fname}
-    elif intent == "sql":
-        result = natural_language_to_pandas(df, query)
-        return {"response": result["response"], "chart": None, "type": result["type"], "download": None}
-    else:
-        return ok(gemini_fallback(df, query))
+    # Layer 2 — ask Gemini to classify and run
+    return _gemini_classify_and_run(df, query)
