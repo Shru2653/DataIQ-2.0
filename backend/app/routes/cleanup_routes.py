@@ -9,7 +9,7 @@ from app.models.user_model import UserInDB
 router = APIRouter()
 
 
-@router.post("/api/cleanup/processed-files")
+@router.post("/cleanup/processed-files")
 def cleanup_processed_files_endpoint(current_user: UserInDB = Depends(get_current_active_user)):
     try:
         # Only remove preview/temp artifacts in this user's cleaned dir that match a safe prefix
@@ -31,7 +31,7 @@ def cleanup_processed_files_endpoint(current_user: UserInDB = Depends(get_curren
         raise HTTPException(status_code=500, detail=f"Error during cleanup: {str(e)}")
 
 
-@router.get("/api/cleanup/status")
+@router.get("/cleanup/status")
 def cleanup_status(current_user: UserInDB = Depends(get_current_active_user)):
     try:
         ufiles = user_files_dir(current_user.id)

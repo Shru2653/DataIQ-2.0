@@ -186,7 +186,7 @@ def _apply_outlier_action(df: pd.DataFrame, masks: Dict[str, pd.Series], cols: L
     return df, total_flagged
 
 
-@router.post("/api/outliers/preview")
+@router.post("/outliers/preview")
 async def outliers_preview(request: OutlierRequest, current_user: UserInDB = Depends(get_current_active_user)):
     try:
         df = _load_dataframe_for_processing_user(request.filename, current_user)
@@ -222,7 +222,7 @@ async def outliers_preview(request: OutlierRequest, current_user: UserInDB = Dep
         raise HTTPException(status_code=500, detail=f"Error generating outlier preview: {str(e)}")
 
 
-@router.post("/api/outliers/diagnose")
+@router.post("/outliers/diagnose")
 async def outliers_diagnose(request: OutlierRequest, current_user: UserInDB = Depends(get_current_active_user)):
     """Diagnostic endpoint to debug outlier detection issues."""
     try:
@@ -265,7 +265,7 @@ async def outliers_diagnose(request: OutlierRequest, current_user: UserInDB = De
 
 
 
-@router.post("/api/outliers/apply")
+@router.post("/outliers/apply")
 async def outliers_apply(request: OutlierRequest, current_user: UserInDB = Depends(get_current_active_user)):
     try:
         df = _load_dataframe_for_processing_user(request.filename, current_user)

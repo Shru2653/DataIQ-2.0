@@ -113,7 +113,7 @@ def _load_dataframe(filename: str, current_user: UserInDB) -> pd.DataFrame:
 
 # ─── Endpoint ─────────────────────────────────────────────────────────────────
 
-@router.post("/api/drift-analysis", response_model=DriftAnalysisResponse)
+@router.post("/drift-analysis", response_model=DriftAnalysisResponse)
 async def analyze_drift(
     request: DriftAnalysisRequest,
     current_user: UserInDB = Depends(get_current_active_user),

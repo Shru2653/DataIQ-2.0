@@ -59,14 +59,14 @@ export default function Home() {
   const dashboardRef = useRef(null);
 
   const chartColors = [
-    "#3b82f6",
+    "#4361ee",
     "#10b981",
-    "#f59e0b",
+    "#3b82f6",
     "#ef4444",
     "#8b5cf6",
     "#14b8a6",
-    "#f97316",
     "#22c55e",
+    "#6366f1",
   ];
 
   const downloadDashboardPDF = async () => {

@@ -23,6 +23,8 @@ google-auth==2.35.0
 # ML and processing
 scikit-learn==1.5.2
 scipy==1.13.1
+matplotlib>=3.8.0
+seaborn>=0.13.0
 
 # Reports/PDF
 reportlab==4.2.2

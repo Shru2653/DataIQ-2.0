@@ -1,31 +1,9 @@
-import React, { useState } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Eye, EyeOff, Mail, Lock, ArrowRight } from 'lucide-react';
-import { loginApi, meApi } from '../api/authApi';
-import useAuthStore from '../stores/useAuthStore';
-import axiosClient from '../api/axiosClient';
-
-// Animation variants
-const fadeInUp = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.3 }
-};
-
-const staggerContainer = {
-  animate: {
-    transition: {
-      staggerChildren: 0.1
-    }
-  }
-};
-
-const scaleIn = {
-  initial: { scale: 0.95, opacity: 0 },
-  animate: { scale: 1, opacity: 1 },
-  transition: { duration: 0.2 }
-};
+import React, { useState } from 'react'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
+import { Eye, EyeOff } from 'lucide-react'
+import { loginApi, meApi } from '../api/authApi'
+import useAuthStore from '../stores/useAuthStore'
+import axiosClient from '../api/axiosClient'
 
 export default function Login() {
   const navigate = useNavigate();
@@ -93,167 +71,573 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-6">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.4 }}
-        className="w-full max-w-md"
+    <div
+      style={{
+        display: 'flex',
+        height: '100vh',
+        background: 'var(--bg)',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Left Panel - Features & Branding (light theme) */}
+      <div
+        style={{
+          width: '45%',
+          flexShrink: 0,
+          background: 'var(--bg)',
+          borderRight: '1px solid var(--border)',
+          padding: '60px 48px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          color: 'var(--text)',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
       >
-        {/* Logo/Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="text-center mb-8"
-        >
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mb-4 shadow-lg shadow-blue-200">
-            <span className="text-2xl font-bold text-white">D</span>
+        {/* Subtle grid + soft accent blobs */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundImage:
+              'linear-gradient(rgba(67, 97, 238, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(67, 97, 238, 0.04) 1px, transparent 1px)',
+            backgroundSize: '24px 24px',
+            pointerEvents: 'none',
+            opacity: 0.85,
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            top: '-50%',
+            right: '-20%',
+            width: '600px',
+            height: '600px',
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(67, 97, 238, 0.12) 0%, transparent 70%)',
+            pointerEvents: 'none',
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '-30%',
+            left: '-10%',
+            width: '400px',
+            height: '400px',
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(67, 97, 238, 0.08) 0%, transparent 70%)',
+            pointerEvents: 'none',
+          }}
+        />
+
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          {/* Logo */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px',
+              marginBottom: '56px',
+            }}
+          >
+            <div
+              style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, #4361ee 0%, #3a52d5 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 8px 24px rgba(67, 97, 238, 0.22)',
+              }}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <rect x="3" y="3" width="8" height="8" rx="2" fill="white" />
+                <rect x="13" y="3" width="8" height="8" rx="2" fill="rgba(255,255,255,0.4)" />
+                <rect x="3" y="13" width="8" height="8" rx="2" fill="rgba(255,255,255,0.4)" />
+                <rect x="13" y="13" width="8" height="8" rx="2" fill="white" />
+              </svg>
+            </div>
+            <div>
+              <div style={{ fontSize: '26px', fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.5px' }}>DataIQ</div>
+              <div style={{ fontSize: '11px', color: 'var(--text2)', fontFamily: 'monospace', marginTop: '2px' }}>Intelligent Data Platform</div>
+            </div>
           </div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Welcome back</h1>
-          <p className="text-slate-500">Sign in to continue to your account</p>
-        </motion.div>
 
-        {/* Login Form */}
-        <motion.div
-          variants={staggerContainer}
-          initial="initial"
-          animate="animate"
-          className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 p-8 border border-slate-100"
-        >
-          <div className="space-y-5">
-            {/* Email Input */}
-            <motion.div variants={fadeInUp}>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                <input
-                  type="email"
-                  placeholder="Email address"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    if (error) setError('');
-                  }}
-                  className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-200 focus:border-blue-500 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-50 transition-all"
-                />
-              </div>
-            </motion.div>
+          {/* Main Heading */}
+          <div style={{ marginBottom: '48px' }}>
+            <p
+              style={{
+                fontSize: '26px',
+                fontWeight: 800,
+                lineHeight: '1.25',
+                marginBottom: '16px',
+                color: 'var(--text)',
+                letterSpacing: '-0.5px',
+              }}
+            >
+              Transform your data quality journey
+            </p>
+            <p
+              style={{
+                fontSize: '15px',
+                color: 'var(--text2)',
+                lineHeight: '1.6',
+              }}
+            >
+              Upload, clean, analyze, and understand your datasets with AI-powered intelligence. Get insights in seconds.
+            </p>
+          </div>
 
-            {/* Password Input */}
-            <motion.div variants={fadeInUp}>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    if (error) setError('');
-                  }}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      handleSubmit();
-                    }
-                  }}
-                  className="w-full pl-12 pr-12 py-3.5 bg-white border border-slate-200 focus:border-blue-500 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-50 transition-all"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
-              </div>
-            </motion.div>
-
-            {/* Error Message */}
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm"
+          {/* Features Grid */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '20px',
+            }}
+          >
+            {[
+              { icon: '⚡', title: 'Automated Cleaning', desc: 'Handle missing values & duplicates' },
+              { icon: '🤖', title: 'AI Chatbot', desc: 'Ask questions in plain English' },
+              { icon: '📊', title: 'Smart Dashboard', desc: 'Auto-generated insights & KPIs' },
+              { icon: '📦', title: 'Version Control', desc: 'Track every transformation' },
+            ].map((feature, i) => (
+              <div
+                key={i}
+                style={{
+                  background: 'var(--card)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  boxShadow: '0 1px 2px rgba(15, 17, 23, 0.04)',
+                  transition: 'all 0.3s ease',
+                  cursor: 'default',
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = 'var(--accent-light)'
+                  e.currentTarget.style.borderColor = 'var(--border-active)'
+                  e.currentTarget.style.transform = 'translateY(-4px)'
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = 'var(--card)'
+                  e.currentTarget.style.borderColor = 'var(--border)'
+                  e.currentTarget.style.transform = 'translateY(0)'
+                }}
               >
-                {error}
-              </motion.div>
-            )}
+                <div style={{ fontSize: '20px', marginBottom: '8px' }}>{feature.icon}</div>
+                <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '4px', color: 'var(--text)' }}>
+                  {feature.title}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text2)' }}>
+                  {feature.desc}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
 
-            {/* Remember Me & Forgot Password */}
-            <motion.div variants={fadeInUp} className="flex items-center justify-between text-sm">
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded border-slate-300 text-blue-500 focus:ring-2 focus:ring-blue-200"
-                />
-                <span className="text-slate-600 group-hover:text-slate-800 transition-colors">
-                  Remember me
-                </span>
-              </label>
+      {/* Right Panel - Login Form */}
+      <div
+        style={{
+          flex: 1,
+          background: '#ffffff',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: '40px',
+          position: 'relative',
+        }}
+      >
+        {/* Decorative top element */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            width: '300px',
+            height: '300px',
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(67, 97, 238, 0.05) 0%, transparent 70%)',
+            pointerEvents: 'none',
+          }}
+        />
+
+        <div style={{ maxWidth: '400px', width: '100%', position: 'relative', zIndex: 1 }}>
+          {/* Header */}
+          <div style={{ marginBottom: '36px', textAlign: 'center' }}>
+            <p
+              style={{
+                fontSize: '28px',
+                fontWeight: 800,
+                color: '#0f1117',
+                marginBottom: '8px',
+                letterSpacing: '-0.5px',
+              }}
+            >
+              Welcome back
+            </p>
+            <p
+              style={{
+                fontSize: '14px',
+                color: '#6b7280',
+                lineHeight: '1.5',
+              }}
+            >
+              Sign in to your DataIQ account and continue your data journey
+            </p>
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <div
+              style={{
+                background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)',
+                border: '1px solid #fca5a5',
+                borderRadius: '10px',
+                padding: '12px 16px',
+                fontSize: '13px',
+                color: '#b02020',
+                marginBottom: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+              }}
+            >
+              <span style={{ fontSize: '16px' }}>⚠️</span>
+              {error}
+            </div>
+          )}
+
+          {/* Email Input */}
+          <div style={{ marginBottom: '18px' }}>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '12.5px',
+                fontWeight: 700,
+                color: '#1f2937',
+                marginBottom: '8px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+              }}
+            >
+              Email Address
+            </label>
+            <input
+              type="email"
+              placeholder="name@company.com"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value)
+                if (error) setError('')
+              }}
+              style={{
+                width: '100%',
+                padding: '12px 14px',
+                border: '2px solid #e5e7eb',
+                borderRadius: '10px',
+                fontSize: '14px',
+                fontFamily: 'inherit',
+                background: '#ffffff',
+                color: '#0f1117',
+                boxSizing: 'border-box',
+                transition: 'all 0.3s ease',
+                outline: 'none',
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = '#4361ee'
+                e.target.style.boxShadow = '0 0 0 3px rgba(67, 97, 238, 0.1)'
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = '#e5e7eb'
+                e.target.style.boxShadow = 'none'
+              }}
+            />
+          </div>
+
+          {/* Password Input */}
+          <div style={{ marginBottom: '12px' }}>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '12.5px',
+                fontWeight: 700,
+                color: '#1f2937',
+                marginBottom: '8px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+              }}
+            >
+              Password
+            </label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="••••••••••"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value)
+                  if (error) setError('')
+                }}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSubmit()
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '12px 14px',
+                  paddingRight: '42px',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '10px',
+                  fontSize: '14px',
+                  fontFamily: 'inherit',
+                  background: '#ffffff',
+                  color: '#0f1117',
+                  boxSizing: 'border-box',
+                  transition: 'all 0.3s ease',
+                  outline: 'none',
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#4361ee'
+                  e.target.style.boxShadow = '0 0 0 3px rgba(67, 97, 238, 0.1)'
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#e5e7eb'
+                  e.target.style.boxShadow = 'none'
+                }}
+              />
               <button
                 type="button"
-                className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#9ca3af',
+                  padding: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'color 0.2s ease',
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.color = '#4361ee'
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.color = '#9ca3af'
+                }}
               >
-                Forgot password?
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
-            </motion.div>
-
-            {/* Login Button */}
-            <motion.button
-              variants={scaleIn}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={handleSubmit}
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3.5 rounded-xl font-semibold shadow-lg shadow-blue-200 hover:shadow-xl hover:shadow-blue-300 transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
-            >
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <>
-                  Sign in
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </>
-              )}
-            </motion.button>
+            </div>
           </div>
 
-          {/* Divider */}
-          <motion.div variants={fadeInUp} className="flex items-center gap-4 my-6">
-            <div className="flex-1 h-px bg-slate-200" />
-            <span className="text-sm text-slate-400 font-medium">OR</span>
-            <div className="flex-1 h-px bg-slate-200" />
-          </motion.div>
+          {/* Forgot Password & Remember Me */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px', color: '#6b7280' }}>
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                style={{ cursor: 'pointer', accentColor: '#4361ee' }}
+              />
+              Remember me
+            </label>
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault()
+              }}
+              style={{
+                fontSize: '13px',
+                fontWeight: 600,
+                color: '#4361ee',
+                textDecoration: 'none',
+                transition: 'opacity 0.2s ease',
+              }}
+              onMouseOver={(e) => {
+                e.target.style.opacity = '0.8'
+              }}
+              onMouseOut={(e) => {
+                e.target.style.opacity = '1'
+              }}
+            >
+              Forgot password?
+            </a>
+          </div>
 
-          {/* Google Login */}
-          <motion.button
-            variants={scaleIn}
-            whileHover={{ scale: 1.02, y: -2 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handleGoogleLogin}
-            type="button"
-            className="w-full bg-white border-2 border-slate-200 text-slate-700 py-3.5 rounded-xl font-semibold hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center justify-center gap-3 shadow-sm"
+          {/* Login Button */}
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              background: loading ? '#9ca3af' : 'linear-gradient(135deg, #4361ee 0%, #3a52d5 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '10px',
+              fontSize: '14px',
+              fontWeight: 700,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              fontFamily: 'inherit',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              boxShadow: loading ? 'none' : '0 4px 12px rgba(67, 97, 238, 0.3)',
+              transition: 'all 0.3s ease',
+              letterSpacing: '0.3px',
+            }}
+            onMouseOver={(e) => {
+              if (!loading) {
+                e.target.style.transform = 'translateY(-2px)'
+                e.target.style.boxShadow = '0 6px 20px rgba(67, 97, 238, 0.4)'
+              }
+            }}
+            onMouseOut={(e) => {
+              e.target.style.transform = 'translateY(0)'
+              e.target.style.boxShadow = '0 4px 12px rgba(67, 97, 238, 0.3)'
+            }}
           >
-            <svg className="w-5 h-5" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            {loading ? (
+              <>
+                <div
+                  style={{
+                    width: '16px',
+                    height: '16px',
+                    border: '2px solid rgba(255, 255, 255, 0.3)',
+                    borderTopColor: 'white',
+                    borderRadius: '50%',
+                    animation: 'spin 0.6s linear infinite',
+                  }}
+                />
+                Signing in...
+              </>
+            ) : (
+              'Sign in to DataIQ'
+            )}
+          </button>
+
+          {/* Divider */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              margin: '24px 0',
+              opacity: 0.6,
+            }}
+          >
+            <div style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
+            <span style={{ fontSize: '12px', color: '#9ca3af' }}>or continue with</span>
+            <div style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
+          </div>
+
+          {/* Google Login Button */}
+          <button
+            onClick={handleGoogleLogin}
+            style={{
+              width: '100%',
+              padding: '11px 16px',
+              background: '#ffffff',
+              color: '#1f2937',
+              border: '2px solid #e5e7eb',
+              borderRadius: '10px',
+              fontSize: '14px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
+              transition: 'all 0.3s ease',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = '#f9fafb'
+              e.currentTarget.style.borderColor = '#4361ee'
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(67, 97, 238, 0.15)'
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = '#ffffff'
+              e.currentTarget.style.borderColor = '#e5e7eb'
+              e.currentTarget.style.boxShadow = 'none'
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                fill="#4285F4"
+              />
+              <path
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                fill="#34A853"
+              />
+              <path
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                fill="#FBBC05"
+              />
+              <path
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                fill="#EA4335"
+              />
             </svg>
-            Continue with Google
-          </motion.button>
+            Google
+          </button>
 
           {/* Sign up link */}
-          <motion.p variants={fadeInUp} className="text-center text-sm text-slate-600 mt-6">
+          <p
+            style={{
+              fontSize: '13px',
+              color: '#6b7280',
+              textAlign: 'center',
+              marginTop: '24px',
+            }}
+          >
             Don't have an account?{' '}
-            <Link to="/register" className="text-blue-600 font-semibold hover:text-blue-700 transition-colors">
-              Create account
+            <Link
+              to="/register"
+              style={{
+                color: '#4361ee',
+                fontWeight: 700,
+                textDecoration: 'none',
+                transition: 'opacity 0.2s ease',
+              }}
+              onMouseOver={(e) => {
+                e.target.style.opacity = '0.8'
+              }}
+              onMouseOut={(e) => {
+                e.target.style.opacity = '1'
+              }}
+            >
+              Create account free
             </Link>
-          </motion.p>
-        </motion.div>
-      </motion.div>
+          </p>
+        </div>
+      </div>
+
+      <style>
+        {`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+          input::placeholder {
+            color: #d1d5db;
+          }
+        `}
+      </style>
     </div>
-  );
+  )
 }

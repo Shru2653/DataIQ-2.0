@@ -46,7 +46,7 @@ class MissingValuesHandleResponse(BaseModel):
     new_file: str
 
 
-@router.post("/api/missing-values/preview")
+@router.post("/missing-values/preview")
 async def preview_missing_values(request: MissingValuesPreviewRequest, current_user: UserInDB = Depends(get_current_active_user)):
     try:
         files_dir = user_files_dir(current_user.id)
@@ -99,7 +99,7 @@ async def preview_missing_values(request: MissingValuesPreviewRequest, current_u
         raise HTTPException(status_code=500, detail=f"Error processing preview: {str(e)}")
 
 
-@router.post("/api/missing-values/handle")
+@router.post("/missing-values/handle")
 async def handle_missing_values(request: MissingValuesHandleRequest, current_user: UserInDB = Depends(get_current_active_user)):
     try:
         files_dir = user_files_dir(current_user.id)

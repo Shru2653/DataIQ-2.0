@@ -1,7 +1,7 @@
 export const palette = {
   primary: '#2563eb',
   secondary: '#10b981',
-  accent: '#f59e0b',
+  accent: '#4361ee',
   muted: '#6b7280',
 };
 

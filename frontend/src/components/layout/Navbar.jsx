@@ -12,16 +12,22 @@ export default function Navbar({ sidebarOpen, setSidebarOpen }){
   const token = useAuthStore((s) => s.token)
   const setUser = useAuthStore((s) => s.setUser)
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [loadingUser, setLoadingUser] = useState(false)
   const menuRef = useRef(null)
 
   useEffect(() => {
     let alive = true
     const loadMe = async () => {
       if (!user && token) {
+        setLoadingUser(true)
         try {
           const me = await meApi()
           if (alive) setUser(me)
-        } catch {}
+        } catch (err) {
+          console.error('Failed to fetch user:', err)
+        } finally {
+          if (alive) setLoadingUser(false)
+        }
       }
     }
     loadMe()
@@ -66,7 +72,7 @@ export default function Navbar({ sidebarOpen, setSidebarOpen }){
             <HomeIcon size={18} />
             <span>Home</span>
           </button>
-          {user && (
+          {token && (
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
@@ -77,34 +83,42 @@ export default function Navbar({ sidebarOpen, setSidebarOpen }){
               </div>
               <div className="text-left hidden sm:block">
                 <p className="text-sm font-semibold text-gray-800">
-                  {user.first_name || user.username}
+                  {loadingUser ? 'Loading...' : (user?.first_name || user?.username || 'Profile')}
                 </p>
-                <p className="text-xs text-gray-500">{user.email}</p>
+                <p className="text-xs text-gray-500">{user?.email || ''}</p>
               </div>
             </button>
 
             {showUserMenu && (
               <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
-                <div className="px-4 py-3 border-b border-gray-100">
-                  <p className="text-sm font-semibold text-gray-800">
-                    {user?.first_name && user?.last_name
-                      ? `${user?.first_name} ${user?.last_name}`
-                      : user?.username
-                    }
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">{user?.email}</p>
-                  <p className="text-xs text-blue-600 mt-1">
-                    {user.provider === 'google' ? '🔗 Google Account' : '🔐 Local Account'}
-                  </p>
-                </div>
+                {loadingUser ? (
+                  <div className="px-4 py-3 text-center">
+                    <p className="text-sm text-gray-500">Loading profile...</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="px-4 py-3 border-b border-gray-100">
+                      <p className="text-sm font-semibold text-gray-800">
+                        {user?.first_name && user?.last_name
+                          ? `${user?.first_name} ${user?.last_name}`
+                          : user?.username
+                        }
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">{user?.email}</p>
+                      <p className="text-xs text-blue-600 mt-1">
+                        {user?.provider === 'google' ? '🔗 Google Account' : '🔐 Local Account'}
+                      </p>
+                    </div>
 
-                <button
-                  onClick={onLogout}
-                  className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2 transition-colors"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span>Logout</span>
-                </button>
+                    <button
+                      onClick={onLogout}
+                      className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2 transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>Logout</span>
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>

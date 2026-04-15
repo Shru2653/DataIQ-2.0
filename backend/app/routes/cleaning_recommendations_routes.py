@@ -82,7 +82,7 @@ def _load_dataframe(filename: str, current_user: UserInDB) -> pd.DataFrame:
 
 # ─── Endpoint ─────────────────────────────────────────────────────────────────
 
-@router.post("/api/cleaning-recommendations", response_model=CleaningRecommendationsResponse)
+@router.post("/cleaning-recommendations", response_model=CleaningRecommendationsResponse)
 async def get_cleaning_recommendations(
     request: CleaningRecommendationsRequest,
     current_user: UserInDB = Depends(get_current_active_user),

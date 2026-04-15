@@ -1,14 +1,12 @@
 /**
- * DashboardPage.jsx — Upgraded with 5 new features:
+ * DashboardPage.jsx — Upgraded with features:
  *   1. Download charts (PNG via Plotly built-in button)
- *   2. Drag-and-drop layout (react-beautiful-dnd)
+ *   2. Drag-and-drop layout (@hello-pangea/dnd)
  *   3. PDF export (html2canvas + jsPDF)
  *   4. Compare two datasets
- *   5. ML prediction panel
  *
  * install deps once:
- *   npm install react-beautiful-dnd html2canvas jspdf
- *   pip install scikit-learn   (backend)
+ *   npm install @hello-pangea/dnd html2canvas jspdf
  */
 
 import React, {
@@ -17,9 +15,9 @@ import React, {
 import {
   Activity, AlertCircle, AlertTriangle, BarChart2, ChevronDown,
   Download, FileDown, Filter, FolderOpen, GitCompare, RefreshCw,
-  Search, Sparkles, X, GripVertical, CheckCircle, Info,
+  Search, X, GripVertical,
 } from "lucide-react";
-import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import html2canvas from "html2canvas";
 import jsPDF       from "jspdf";
 
@@ -34,11 +32,11 @@ import { useAppStore } from "../stores/useAppStore";
 // ─────────────────────────────────────────────────────────────────────────────
 
 const KPI_COLOR = {
-  blue:   { card: "bg-blue-50   border-blue-200",   value: "text-blue-700"   },
-  green:  { card: "bg-green-50  border-green-200",  value: "text-green-700"  },
-  amber:  { card: "bg-amber-50  border-amber-200",  value: "text-amber-700"  },
-  red:    { card: "bg-red-50    border-red-200",     value: "text-red-700"    },
-  purple: { card: "bg-purple-50 border-purple-200", value: "text-purple-700" },
+  blue:   { card: "bg-white border-blue-200",        value: "text-blue-700"   },
+  green:  { card: "bg-white border-emerald-200",     value: "text-emerald-700"  },
+  amber:  { card: "bg-white border-amber-200",       value: "text-amber-700"  },
+  red:    { card: "bg-white border-red-200",         value: "text-red-700"    },
+  purple: { card: "bg-white border-purple-200",      value: "text-purple-700" },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -66,12 +64,12 @@ function ChartCard({ chart, dragHandleProps }) {
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden h-full">
       <div className="px-4 pt-3 pb-1 flex items-center justify-between gap-2">
         {/* Drag handle */}
-        <div {...dragHandleProps} className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 flex-shrink-0">
+        <div {...dragHandleProps} className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-400 flex-shrink-0">
           <GripVertical size={16} />
         </div>
         <p className="text-sm font-semibold text-gray-800 leading-snug flex-1 truncate">{chart.title}</p>
         {chart.anomaly_message && (
-          <span className="flex items-center gap-1 text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 whitespace-nowrap flex-shrink-0">
+          <span className="flex items-center gap-1 text-[10px] font-medium text-amber-800 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 whitespace-nowrap flex-shrink-0">
             <AlertTriangle size={10} />
             {chart.anomaly_message}
           </span>
@@ -103,7 +101,7 @@ function FilterBar({ schema, filters, setFilters }) {
   );
   if (!catCols.length) return null;
   return (
-    <div className="flex flex-wrap items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-3 mb-6">
+    <div className="flex flex-wrap items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 mb-6">
       <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">
         <Filter size={13} /> Filters
       </span>
@@ -112,7 +110,7 @@ function FilterBar({ schema, filters, setFilters }) {
           <select
             value={filters[col] ?? ""}
             onChange={(e) => setFilters((p) => ({ ...p, [col]: e.target.value || undefined }))}
-            className="appearance-none text-xs border border-gray-200 rounded-lg pl-3 pr-7 py-1.5 bg-gray-50 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+            className="appearance-none text-xs border border-gray-200 rounded-lg pl-3 pr-7 py-1.5 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
           >
             <option value="">All {col}</option>
             {(schema.columns[col]?.sample_values ?? []).map((v) => (
@@ -123,7 +121,7 @@ function FilterBar({ schema, filters, setFilters }) {
         </div>
       ))}
       {Object.keys(filters).length > 0 && (
-        <button onClick={() => setFilters({})} className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700">
+        <button onClick={() => setFilters({})} className="flex items-center gap-1 text-xs text-red-600 hover:text-red-700">
           <X size={12} /> Clear
         </button>
       )}
@@ -221,7 +219,7 @@ function ComparePanel({ serverFiles, currentFile }) {
     setError(null);
     setResult(null);
     try {
-      const res = await axiosClient.post("/api/dashboard/compare", {
+      const res = await axiosClient.post("/dashboard/compare", {
         filename_a: currentFile,
         filename_b: fileB,
       });
@@ -236,20 +234,20 @@ function ComparePanel({ serverFiles, currentFile }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
       <div className="flex items-center gap-2 mb-4">
-        <GitCompare size={18} className="text-purple-500" />
+        <GitCompare size={18} style={{color: '#4361ee'}} />
         <h3 className="text-base font-semibold text-gray-800">Compare Datasets</h3>
       </div>
 
       <div className="flex flex-wrap items-center gap-3 mb-5">
         <div className="flex items-center gap-2 text-sm text-gray-600">
-          <span className="font-medium text-blue-600">{currentFile || "—"}</span>
+          <span className="font-medium text-indigo-600">{currentFile || "—"}</span>
           <span className="text-gray-400">vs</span>
         </div>
         <div className="relative">
           <select
             value={fileB}
             onChange={(e) => setFileB(e.target.value)}
-            className="appearance-none text-sm border border-gray-200 rounded-lg pl-3 pr-8 py-1.5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-300"
+            className="appearance-none text-sm border border-gray-200 rounded-lg pl-3 pr-8 py-1.5 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
           >
             <option value="">Select second file…</option>
             {serverFiles.filter((f) => f !== currentFile).map((f) => (
@@ -261,7 +259,10 @@ function ComparePanel({ serverFiles, currentFile }) {
         <button
           onClick={compare}
           disabled={!fileB || !currentFile || loading}
-          className="flex items-center gap-2 px-4 py-1.5 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-40 rounded-lg transition"
+          className="flex items-center gap-2 px-4 py-1.5 text-sm font-medium text-white rounded-lg transition"
+          style={{ background: '#4361ee' }}
+          onMouseEnter={(e) => e.target.style.background = '#3e56d4'}
+          onMouseLeave={(e) => e.target.style.background = '#4361ee'}
         >
           {loading ? <RefreshCw size={13} className="animate-spin" /> : <GitCompare size={13} />}
           Compare
@@ -275,8 +276,8 @@ function ComparePanel({ serverFiles, currentFile }) {
           {/* Side-by-side summary */}
           <div className="grid grid-cols-2 gap-4">
             {[result.dataset_a, result.dataset_b].map((ds, i) => (
-              <div key={i} className={`rounded-xl border p-4 ${i === 0 ? "border-blue-200 bg-blue-50" : "border-purple-200 bg-purple-50"}`}>
-                <p className={`text-xs font-semibold mb-2 truncate ${i === 0 ? "text-blue-700" : "text-purple-700"}`}>{ds.filename}</p>
+              <div key={i} className={`rounded-xl border p-4 ${i === 0 ? "border-blue-200 bg-blue-50" : "border-blue-200 bg-blue-50"}`}>
+                <p className={`text-xs font-semibold mb-2 truncate ${i === 0 ? "text-blue-700" : "text-blue-700"}`}>{ds.filename}</p>
                 {[
                   ["Rows",          ds.row_count?.toLocaleString()],
                   ["Columns",       ds.column_count],
@@ -286,8 +287,8 @@ function ComparePanel({ serverFiles, currentFile }) {
                   ["Categorical",   ds.categorical_cols],
                 ].map(([label, val]) => (
                   <div key={label} className="flex justify-between text-xs py-0.5">
-                    <span className="text-gray-500">{label}</span>
-                    <span className="font-medium text-gray-800">{val}</span>
+                    <span className="text-gray-400">{label}</span>
+                    <span className="font-medium text-gray-600">{val}</span>
                   </div>
                 ))}
               </div>
@@ -304,8 +305,8 @@ function ComparePanel({ serverFiles, currentFile }) {
               <p className="font-semibold text-blue-700 mb-1">Only in A ({result.only_in_a.length})</p>
               <p className="text-gray-600 truncate">{result.only_in_a.slice(0,5).join(", ") || "—"}</p>
             </div>
-            <div className="rounded-lg bg-purple-50 border border-purple-200 p-3">
-              <p className="font-semibold text-purple-700 mb-1">Only in B ({result.only_in_b.length})</p>
+            <div className="rounded-lg bg-blue-50 border border-blue-200 p-3">
+              <p className="font-semibold text-blue-700 mb-1">Only in B ({result.only_in_b.length})</p>
               <p className="text-gray-600 truncate">{result.only_in_b.slice(0,5).join(", ") || "—"}</p>
             </div>
           </div>
@@ -317,18 +318,18 @@ function ComparePanel({ serverFiles, currentFile }) {
                 <thead>
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-2 px-2 font-semibold text-gray-600">Column</th>
-                    <th className="text-center py-2 px-2 font-semibold text-blue-600">Mean A</th>
-                    <th className="text-center py-2 px-2 font-semibold text-purple-600">Mean B</th>
+                    <th className="text-center py-2 px-2 font-semibold" style={{color: '#4361ee'}}>Mean A</th>
+                    <th className="text-center py-2 px-2 font-semibold" style={{color: '#4361ee'}}>Mean B</th>
                     <th className="text-center py-2 px-2 font-semibold text-gray-600">Missing A</th>
                     <th className="text-center py-2 px-2 font-semibold text-gray-600">Missing B</th>
                   </tr>
                 </thead>
                 <tbody>
                   {result.dataset_a.shared_column_comparison.map((row) => (
-                    <tr key={row.column} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-1.5 px-2 font-medium text-gray-800">{row.column}</td>
-                      <td className="text-center py-1.5 px-2 text-blue-700">{row.mean_a != null ? Number(row.mean_a).toFixed(2) : row.top_a ?? "—"}</td>
-                      <td className="text-center py-1.5 px-2 text-purple-700">{row.mean_b != null ? Number(row.mean_b).toFixed(2) : row.top_b ?? "—"}</td>
+                    <tr key={row.column} className="border-b border-gray-200 hover:bg-gray-50">
+                      <td className="py-1.5 px-2 font-medium text-gray-600">{row.column}</td>
+                      <td className="text-center py-1.5 px-2" style={{color: '#4361ee'}}>{row.mean_a != null ? Number(row.mean_a).toFixed(2) : row.top_a ?? "—"}</td>
+                      <td className="text-center py-1.5 px-2" style={{color: '#4361ee'}}>{row.mean_b != null ? Number(row.mean_b).toFixed(2) : row.top_b ?? "—"}</td>
                       <td className="text-center py-1.5 px-2">{row.missing_a}%</td>
                       <td className="text-center py-1.5 px-2">{row.missing_b}%</td>
                     </tr>
@@ -343,127 +344,120 @@ function ComparePanel({ serverFiles, currentFile }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ML Prediction Panel
-// ─────────────────────────────────────────────────────────────────────────────
+function formatMetricValue(kpi) {
+  const value = kpi?.total ?? kpi?.avg ?? kpi?.value ?? 0;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return String(value ?? "N/A");
+  if (kpi?.type === "currency") {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }).format(numeric);
+  }
+  if (kpi?.type === "percentage") return `${numeric.toFixed(2)}%`;
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(numeric);
+}
 
-function MLPanel({ filename, numericColumns }) {
-  const [target,   setTarget]   = useState("");
-  const [loading,  setLoading]  = useState(false);
-  const [result,   setResult]   = useState(null);
-  const [error,    setError]    = useState(null);
+function legacyChartToSpec(chart, index) {
+  const id = `legacy_chart_${index + 1}`;
+  const data = Array.isArray(chart?.data) ? chart.data : [];
+  const type = chart?.type === "grouped_bar" ? "bar" : chart?.type;
+  const yKeys = Array.isArray(chart?.yKeys) ? chart.yKeys : [];
 
-  const allCols = numericColumns ?? [];
+  if (chart?.type === "pie") {
+    return {
+      id,
+      title: chart.title || "Pie Chart",
+      type: "pie",
+      column: chart.nameKey || chart.valueKey || "category",
+      traces: [{
+        type: "pie",
+        labels: data.map((row) => row?.[chart.nameKey]),
+        values: data.map((row) => row?.[chart.valueKey]),
+        hoverinfo: "label+percent+value",
+        textinfo: "percent",
+      }],
+      layout: {},
+    };
+  }
 
-  const run = async () => {
-    if (!filename || !target) return;
-    setLoading(true);
-    setError(null);
-    setResult(null);
-    try {
-      const res = await axiosClient.post("/api/dashboard/ml-predict", {
-        filename,
-        target_column: target,
-      });
-      setResult(res.data);
-    } catch (e) {
-      setError(e?.response?.data?.detail ?? e?.message ?? "ML prediction failed.");
-    } finally {
-      setLoading(false);
-    }
+  if (type === "histogram") {
+    const yKey = yKeys[0] || "count";
+    return {
+      id,
+      title: chart.title || "Histogram",
+      type: "histogram",
+      column: chart.xKey || "range",
+      traces: [{
+        type: "bar",
+        x: data.map((row) => row?.[chart.xKey]),
+        y: data.map((row) => row?.[yKey]),
+        name: yKey,
+      }],
+      layout: { xaxis: { title: chart.xKey }, yaxis: { title: yKey } },
+    };
+  }
+
+  return {
+    id,
+    title: chart?.title || "Chart",
+    type: type || "bar",
+    column: chart?.xKey || yKeys[0] || "value",
+    traces: yKeys.map((key) => ({
+      type: type === "bar" ? "bar" : "scatter",
+      mode: type === "line" ? "lines+markers" : type === "scatter" ? "markers" : undefined,
+      x: data.map((row) => row?.[chart.xKey]),
+      y: data.map((row) => row?.[key]),
+      name: key,
+    })),
+    layout: { xaxis: { title: chart?.xKey }, yaxis: { title: yKeys.join(", ") } },
   };
+}
 
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-      <div className="flex items-center gap-2 mb-4">
-        <Sparkles size={18} className="text-indigo-500" />
-        <h3 className="text-base font-semibold text-gray-800">ML Prediction</h3>
-        <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Random Forest</span>
-      </div>
+function normalizeDashboardResponse(data) {
+  if (data?.statistics?.kpis && data?.statistics?.charts) return data;
 
-      <div className="flex flex-wrap items-center gap-3 mb-5">
-        <span className="text-sm text-gray-600">Predict:</span>
-        <div className="relative">
-          <select
-            value={target}
-            onChange={(e) => setTarget(e.target.value)}
-            className="appearance-none text-sm border border-gray-200 rounded-lg pl-3 pr-8 py-1.5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-          >
-            <option value="">Select target column…</option>
-            {allCols.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-          <ChevronDown size={12} className="absolute right-2 top-2.5 text-gray-400 pointer-events-none" />
-        </div>
-        <button
-          onClick={run}
-          disabled={!target || loading}
-          className="flex items-center gap-2 px-4 py-1.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-lg transition"
-        >
-          {loading ? <RefreshCw size={13} className="animate-spin" /> : <Sparkles size={13} />}
-          Train & Predict
-        </button>
-      </div>
-
-      {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
-
-      {result && (
-        <div className="space-y-5">
-          {/* Metrics */}
-          <div className="flex flex-wrap gap-3">
-            <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-2">
-              <CheckCircle size={14} className="text-indigo-500" />
-              <div>
-                <p className="text-[10px] text-gray-500 uppercase tracking-wide">{result.model_type === "classifier" ? "Accuracy" : "R² Score"}</p>
-                <p className="text-lg font-bold text-indigo-700">
-                  {result.model_type === "classifier" ? `${result.accuracy}%` : result.r2_score}
-                </p>
-              </div>
-            </div>
-            {result.rmse != null && (
-              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
-                <Info size={14} className="text-amber-500" />
-                <div>
-                  <p className="text-[10px] text-gray-500 uppercase tracking-wide">RMSE</p>
-                  <p className="text-lg font-bold text-amber-700">{result.rmse}</p>
-                </div>
-              </div>
-            )}
-            <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-4 py-2">
-              <Activity size={14} className="text-green-500" />
-              <div>
-                <p className="text-[10px] text-gray-500 uppercase tracking-wide">Top feature</p>
-                <p className="text-sm font-bold text-green-700 truncate max-w-[120px]">{result.top_feature}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Insight */}
-          <p className="text-sm text-gray-600 bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
-            {result.insight}
-          </p>
-
-          {/* Feature importance horizontal bar chart */}
-          <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Feature importances</p>
-            <div className="space-y-2">
-              {result.feature_importances.map((fi, i) => (
-                <div key={fi.feature} className="flex items-center gap-2">
-                  <span className="text-xs text-gray-600 w-32 truncate text-right">{fi.feature}</span>
-                  <div className="flex-1 bg-gray-100 rounded-full h-2.5 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-indigo-500 transition-all"
-                      style={{ width: `${fi.importance_pct}%`, opacity: 1 - i * 0.05 }}
-                    />
-                  </div>
-                  <span className="text-xs text-gray-500 w-10 text-right">{fi.importance_pct}%</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+  const schemaColumns = Object.fromEntries(
+    Object.entries(data?.schema?.columns ?? {}).map(([name, meta]) => [
+      name,
+      {
+        dtype: meta?.dtype || "unknown",
+        is_numeric: Boolean(meta?.is_numeric),
+        is_datetime: Boolean(meta?.is_datetime),
+        is_categorical: Boolean(meta?.is_categorical),
+        missing_percent: Number(meta?.missing_percent ?? 0),
+        unique_count: Number(meta?.unique_count ?? 0),
+        sample_values: Array.isArray(meta?.sample_values) ? meta.sample_values : [],
+      },
+    ]),
   );
+
+  const numericColumns = Object.entries(schemaColumns)
+    .filter(([, meta]) => meta.is_numeric)
+    .map(([name]) => name);
+
+  return {
+    statistics: {
+      numeric_summary: data?.statistics?.numeric_summary ?? {},
+      categorical_summary: data?.statistics?.categorical_summary ?? {},
+      correlation_matrix: data?.statistics?.correlation_matrix ?? null,
+      outlier_counts: data?.statistics?.outlier_counts ?? {},
+      numeric_columns: numericColumns,
+      kpis: (data?.kpis ?? []).map((kpi) => ({
+        label: kpi.label || kpi.key || "Metric",
+        value: formatMetricValue(kpi),
+        sub: kpi.count ? `${kpi.count.toLocaleString()} values` : undefined,
+        color: kpi.trend === "decreasing" ? "amber" : "blue",
+      })),
+      charts: (data?.charts ?? []).map(legacyChartToSpec).filter((chart) => chart.traces.length > 0),
+    },
+    schema: {
+      row_count: data?.schema?.row_count ?? data?.schema?.sampled_rows ?? 0,
+      column_count: data?.schema?.column_count ?? Object.keys(schemaColumns).length,
+      columns: schemaColumns,
+    },
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -474,8 +468,10 @@ export default function DashboardPage() {
   const sidebarOpen    = useAppStore((s) => s.sidebarOpen);
   const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
   const selectedFile   = useAppStore((s) => s.selectedFile);
+  const clearSelectedFile = useAppStore((s) => s.clearSelectedFile);
 
   const [serverFiles,  setServerFiles]  = useState([]);
+  const [filesLoaded,  setFilesLoaded]  = useState(false);
   const [activeFile,   setActiveFile]   = useState("");
   const [loading,      setLoading]      = useState(false);
   const [error,        setError]        = useState(null);
@@ -485,28 +481,64 @@ export default function DashboardPage() {
   const [search,       setSearch]       = useState("");
   const [chartOrder,   setChartOrder]   = useState([]);  // drag-and-drop order
   const [pdfLoading,   setPdfLoading]   = useState(false);
-  const [activeTab,    setActiveTab]    = useState("charts"); // charts | compare | ml
+  const [activeTab,    setActiveTab]    = useState("charts"); // charts | compare
 
   const dashboardRef = useRef(null);
 
   // Load file list
   useEffect(() => {
-    axiosClient.get("/api/files")
-      .then((res) => {
-        const files = res.data?.files ?? res.data ?? [];
-        const names = Array.isArray(files)
-          ? files.map((f) => f.filename ?? f.name ?? f).filter(Boolean)
-          : [];
+    let cancelled = false;
+
+    const namesFrom = (payload) => {
+      const files = payload?.files ?? payload ?? [];
+      return Array.isArray(files)
+        ? files.map((f) => f?.filename ?? f?.name ?? f).filter(Boolean).map(String)
+        : [];
+    };
+
+    const loadFiles = async () => {
+      setFilesLoaded(false);
+      try {
+        const [raw, cleaned] = await Promise.all([
+          axiosClient.get("/api/files"),
+          axiosClient.get("/api/cleaned-files"),
+        ]);
+        if (cancelled) return;
+
+        const names = Array.from(new Set([
+          ...namesFrom(raw.data),
+          ...namesFrom(cleaned.data),
+        ])).sort((a, b) => a.localeCompare(b));
+
         setServerFiles(names);
-      })
-      .catch(() => {});
+      } catch (err) {
+        if (!cancelled) {
+          setError(err?.data?.detail ?? err?.message ?? "Failed to load available files.");
+        }
+      } finally {
+        if (!cancelled) setFilesLoaded(true);
+      }
+    };
+
+    loadFiles();
+    return () => { cancelled = true; };
   }, []);
 
   // Sync Zustand → activeFile
   useEffect(() => {
     const zf = selectedFile?.filename ?? selectedFile?.name ?? null;
-    if (zf && !activeFile) setActiveFile(zf);
+    if (zf) setActiveFile(zf);
   }, [selectedFile]);
+
+  useEffect(() => {
+    if (!filesLoaded || !activeFile || serverFiles.length === 0) return;
+    if (!serverFiles.includes(activeFile)) {
+      setDashData(null);
+      setActiveFile("");
+      clearSelectedFile();
+      setError(`Selected file "${activeFile}" is not available for the current user. Choose a file from the list.`);
+    }
+  }, [activeFile, clearSelectedFile, filesLoaded, serverFiles]);
 
   // Fetch dashboard
   const fetchDashboard = useCallback(async (fname) => {
@@ -517,19 +549,28 @@ export default function DashboardPage() {
     setFilters({});
     setChartOrder([]);
     try {
-      const res = await axiosClient.post("/api/dashboard/auto", { filename: fname });
-      setDashData(res.data);
-      setChartOrder((res.data.statistics?.charts ?? []).map((c) => c.id));
+      console.log('Fetching dashboard for:', fname);
+      const res = await axiosClient.post("/api/auto-dashboard/analyze", { filename: fname });
+      const normalized = normalizeDashboardResponse(res.data);
+      console.log('Dashboard response:', normalized);
+      setDashData(normalized);
+      setChartOrder((normalized.statistics?.charts ?? []).map((c) => c.id));
     } catch (err) {
-      setError(err?.response?.data?.detail ?? err?.message ?? "Failed to generate dashboard.");
+      console.error('Dashboard Error:', err);
+      const errorMsg = err?.data?.detail ?? err?.response?.data?.detail ?? err?.message ?? "Failed to generate dashboard.";
+      console.error('Error message:', errorMsg);
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (activeFile) fetchDashboard(activeFile);
-  }, [activeFile]);
+    if (!filesLoaded || !activeFile) return;
+    if (serverFiles.length > 0 && !serverFiles.includes(activeFile)) return;
+    console.log('activeFile changed, fetching dashboard for:', activeFile);
+    fetchDashboard(activeFile);
+  }, [activeFile, fetchDashboard, filesLoaded, serverFiles]);
 
   // Derived
   const { statistics, schema } = dashData ?? {};
@@ -600,7 +641,7 @@ export default function DashboardPage() {
       <button
         onClick={() => fetchDashboard(activeFile)}
         disabled={!activeFile || loading}
-        className="flex items-center gap-2 px-4 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-40 rounded-lg transition"
+        className="flex items-center gap-2 px-4 py-1.5 text-sm font-medium text-white rounded-lg transition" style={{background: '#4361ee'}} onMouseEnter={(e) => e.target.style.background = '#3e56d4'} onMouseLeave={(e) => e.target.style.background = '#4361ee'}
       >
         <BarChart2 size={14} /> Generate
       </button>
@@ -609,42 +650,86 @@ export default function DashboardPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-slate-50">
-      <Navbar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+    <div className="w-full space-y-6 p-6">
+      <main className="w-full">
 
-      <main className="pt-24 pb-16 px-6 lg:px-12">
-
-        {/* Page header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800">Auto Dashboard</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Charts, KPIs, ML predictions and dataset comparison</p>
+        {/* File selector and action buttons */}
+        <div style={{
+          background: 'var(--card)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius)',
+          padding: '16px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px',
+          flexWrap: 'wrap',
+          marginBottom: '20px',
+        }}>
+          <div style={{ minWidth: '100px', fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>Choose File:</div>
+          <div style={{ position: 'relative', flex: 1, minWidth: '200px', maxWidth: '300px' }}>
+            <select
+              value={activeFile}
+              onChange={(e) => setActiveFile(e.target.value)}
+              style={{
+                width: '100%',
+                appearance: 'none',
+                background: 'white',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '8px 12px',
+                fontSize: '14px',
+                color: 'var(--text)',
+                cursor: 'pointer',
+                paddingRight: '28px',
+              }}
+            >
+              <option value="">Select a file...</option>
+              {serverFiles.map((f) => <option key={f} value={f}>{f}</option>)}
+            </select>
+            <ChevronDown size={14} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text2)' }} />
           </div>
+          <button
+            onClick={() => fetchDashboard(activeFile)}
+            disabled={!activeFile || loading}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 16px',
+              fontSize: '14px',
+              fontWeight: 600,
+              color: 'white',
+              background: 'var(--accent)',
+              border: 'none',
+              borderRadius: 'var(--radius-sm)',
+              cursor: activeFile && !loading ? 'pointer' : 'not-allowed',
+              opacity: (activeFile && !loading) ? 1 : 0.5,
+            }}
+          >
+            {loading ? <RefreshCw size={14} className="animate-spin" /> : <BarChart2 size={14} />}
+            {loading ? 'Generating...' : 'Generate'}
+          </button>
           {dashData && (
-            <div className="flex items-center gap-2 flex-wrap">
+            <>
               <button onClick={() => fetchDashboard(activeFile)}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg transition">
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', fontSize: '14px', background: 'var(--accent-light)', color: 'var(--accent)', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}>
                 <RefreshCw size={14} /> Refresh
               </button>
               <button onClick={() => exportCSV(statistics, schema, activeFile.replace(/\.[^.]+$/, ""))}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg transition">
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', fontSize: '14px', background: 'var(--card)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}>
                 <Download size={14} /> CSV
               </button>
               <button
                 onClick={() => exportPDF(dashboardRef, activeFile.replace(/\.[^.]+$/, ""), setPdfLoading)}
                 disabled={pdfLoading}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm text-white bg-gray-800 hover:bg-gray-900 disabled:opacity-50 rounded-lg transition"
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', fontSize: '14px', color: 'white', background: '#1f2937', border: 'none', borderRadius: 'var(--radius-sm)', cursor: pdfLoading ? 'not-allowed' : 'pointer', opacity: pdfLoading ? 0.5 : 1 }}
               >
-                {pdfLoading
-                  ? <RefreshCw size={14} className="animate-spin" />
-                  : <FileDown size={14} />}
-                {pdfLoading ? "Exporting…" : "PDF"}
+                {pdfLoading ? <RefreshCw size={14} className="animate-spin" /> : <FileDown size={14} />}
+                {pdfLoading ? 'Exporting…' : 'PDF'}
               </button>
-            </div>
+            </>
           )}
         </div>
-
-        {FileSelectorBar}
 
         {/* Loading */}
         {loading && (
@@ -700,7 +785,6 @@ export default function DashboardPage() {
               {[
                 { key: "charts",  label: "Charts",  icon: BarChart2   },
                 { key: "compare", label: "Compare", icon: GitCompare  },
-                { key: "ml",      label: "ML Predict", icon: Sparkles },
               ].map(({ key, label, icon: Icon }) => (
                 <button key={key} onClick={() => setActiveTab(key)}
                   className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-medium transition ${
@@ -800,14 +884,6 @@ export default function DashboardPage() {
             {/* ── Compare tab ──────────────────────────────────────────── */}
             {activeTab === "compare" && (
               <ComparePanel serverFiles={serverFiles} currentFile={activeFile} />
-            )}
-
-            {/* ── ML tab ───────────────────────────────────────────────── */}
-            {activeTab === "ml" && (
-              <MLPanel
-                filename={activeFile}
-                numericColumns={statistics?.numeric_columns ?? []}
-              />
             )}
 
           </div>

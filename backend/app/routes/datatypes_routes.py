@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import os
+import json
 import pandas as pd
 import numpy as np
 
@@ -133,7 +134,7 @@ def suggest_optimal_dtype(series):
         return str(series.dtype), False
 
 
-@router.post("/api/datatypes/preview")
+@router.post("/datatypes/preview")
 async def preview_datatypes(request: DataTypesPreviewRequest, current_user: UserInDB = Depends(get_current_active_user)):
     try:
         # Look in user files dir, then user cleaned dir
@@ -186,6 +187,8 @@ async def preview_datatypes(request: DataTypesPreviewRequest, current_user: User
             ))
 
         preview_data = df.head(100).fillna("").to_dict(orient="records")
+        # Convert numpy types to native Python types for JSON serialization
+        preview_data = json.loads(json.dumps(preview_data, default=str))
         return DataTypesPreviewResponse(
             total_rows=len(df),
             total_columns=len(df.columns),
@@ -199,7 +202,7 @@ async def preview_datatypes(request: DataTypesPreviewRequest, current_user: User
         raise HTTPException(status_code=500, detail=f"Error processing preview: {str(e)}")
 
 
-@router.post("/api/datatypes/convert")
+@router.post("/datatypes/convert")
 async def convert_datatypes(request: DataTypesConvertRequest, current_user: UserInDB = Depends(get_current_active_user)):
     try:
         files_dir = user_files_dir(current_user.id)
@@ -346,8 +349,13 @@ async def convert_datatypes(request: DataTypesConvertRequest, current_user: User
         elif ext2.lower() in ['.xlsx', '.xls']:
             df_processed.to_excel(converted_path, index=False, engine='openpyxl')
 
-        updated_dtypes = df_processed.dtypes.astype(str).to_dict()
-        preview_data = df_processed.head(100).fillna("").to_dict(orient="records")
+        updated_dtypes = {str(k): str(v) for k, v in df_processed.dtypes.items()}
+        
+        # Convert preview data to JSON-serializable format
+        preview_df = df_processed.head(100).fillna("")
+        preview_dict = preview_df.to_dict(orient="records")
+        # Convert numpy types to native Python types
+        preview_data = json.loads(json.dumps(preview_dict, default=str))
 
         # Register cleaned version
         try:

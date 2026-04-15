@@ -40,10 +40,10 @@ export default function ActionCard({
   // backend returned a new_file name in its response payload.
   const hasFile = Boolean(stepOutput?.new_file);
 
-  const colorClasses = {
-    blue: "from-blue-500   to-blue-600   hover:shadow-blue-200",
-    indigo: "from-indigo-500 to-indigo-600 hover:shadow-indigo-200",
-    purple: "from-purple-500 to-purple-600 hover:shadow-purple-200",
+  const iconBg = {
+    blue: "bg-[var(--icon-blue)]",
+    indigo: "bg-[var(--icon-indigo)]",
+    purple: "bg-[var(--icon-violet)]",
   };
 
   const handleFilterToggle = (filter) => {
@@ -121,18 +121,19 @@ export default function ActionCard({
         opacity: { duration: 0.3, delay: card.delay || 0 },
         y: { duration: 0.3, delay: card.delay || 0 },
       }}
-      className={`group w-full h-full min-h-[260px] flex flex-col justify-between bg-white rounded-xl p-6 border border-slate-200 shadow-sm
-        hover:border-blue-300 transition-all duration-500
+      className={`group w-full h-full min-h-[260px] flex flex-col justify-between rounded-xl p-6 border shadow-sm
+        bg-[var(--card)] border-[var(--border)]
+        hover:border-[var(--border-active)] transition-all duration-500
         ${
           isExpanded
-            ? "md:col-span-2 lg:col-span-3 xl:col-span-4 2xl:col-span-5 shadow-xl border-blue-400"
+            ? "md:col-span-2 lg:col-span-3 xl:col-span-4 2xl:col-span-5 shadow-xl border-[var(--border-active)]"
             : "hover:shadow-xl hover:-translate-y-2"
         }`}
     >
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between mb-4">
         <div
-          className={`w-14 h-14 bg-gradient-to-r ${colorClasses[card.color] ?? colorClasses.blue}
+          className={`w-14 h-14 ${iconBg[card.color] ?? iconBg.blue}
           rounded-xl flex items-center justify-center shadow-lg
           group-hover:scale-110 transition-transform duration-300`}
         >
@@ -146,7 +147,7 @@ export default function ActionCard({
             </div>
           )}
           {hasSelectedFile && stepStatus === "running" && (
-            <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+            <div className="w-6 h-6 bg-[var(--accent)] rounded-full flex items-center justify-center">
               <RefreshCw className="w-4 h-4 text-white animate-spin" />
             </div>
           )}
@@ -157,12 +158,12 @@ export default function ActionCard({
           )}
           <button
             onClick={onToggle}
-            className="p-2 rounded-lg hover:bg-blue-50 transition-colors"
+            className="p-2 rounded-lg hover:bg-[var(--accent-light)] transition-colors"
           >
             {isExpanded ? (
-              <ChevronUp className="w-5 h-5 text-slate-600" />
+              <ChevronUp className="w-5 h-5 text-[var(--text2)]" />
             ) : (
-              <ChevronDown className="w-5 h-5 text-slate-600" />
+              <ChevronDown className="w-5 h-5 text-[var(--text2)]" />
             )}
           </button>
         </div>
@@ -170,10 +171,10 @@ export default function ActionCard({
 
       {/* ── Title & Description ─────────────────────────────────────────── */}
       <div className="cursor-pointer" onClick={onToggle}>
-        <h3 className="text-lg font-semibold text-slate-800 mb-3 group-hover:text-blue-700 transition-colors">
+        <h3 className="text-lg font-semibold text-[var(--text)] mb-3 group-hover:text-[var(--accent)] transition-colors">
           {card.title}
         </h3>
-        <p className="text-sm text-gray-600 leading-relaxed mb-4">
+        <p className="text-sm text-[var(--text2)] leading-relaxed mb-4">
           {card.description}
         </p>
       </div>
@@ -182,17 +183,17 @@ export default function ActionCard({
       {!isExpanded && (
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4 mt-auto">
           <div
-            className="inline-flex items-center gap-2 text-blue-600 font-semibold cursor-pointer hover:text-blue-700 transition-colors self-end"
+            className="inline-flex items-center gap-2 text-sm text-[var(--accent)] font-semibold cursor-pointer hover:text-[var(--accent-hover)] transition-colors self-end"
             onClick={onToggle}
           >
             <span>Configure &amp; Run</span>
             <Play className="w-4 h-4 shrink-0 group-hover:translate-x-1 transition-transform" />
           </div>
           <div className="flex items-center gap-2 self-end whitespace-nowrap">
-            <span className="text-sm leading-none text-slate-500">
+            <span className="text-sm leading-none text-[var(--text3)]">
               {card.options?.actions?.length || 0} actions
             </span>
-            <Sliders className="w-4 h-4 shrink-0 text-slate-400" />
+            <Sliders className="w-4 h-4 shrink-0 text-[var(--text3)]" />
           </div>
         </div>
       )}
@@ -212,31 +213,31 @@ export default function ActionCard({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="mt-6 pt-6 border-t border-slate-200"
+            className="mt-6 pt-6 border-t border-[var(--border)]"
           >
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Actions */}
               <div className="space-y-3">
                 <div className="flex items-center space-x-2 mb-3">
-                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Play className="w-4 h-4 text-blue-600" />
+                  <div className="w-8 h-8 bg-[var(--accent-light)] rounded-lg flex items-center justify-center">
+                    <Play className="w-4 h-4 text-[var(--accent)]" />
                   </div>
-                  <h4 className="font-semibold text-slate-800">Actions</h4>
+                  <h4 className="font-semibold text-[var(--text)]">Actions</h4>
                 </div>
                 <div className="space-y-2">
                   {card.options.actions?.map((action, idx) => (
                     <label
                       key={idx}
-                      className="flex items-center space-x-3 p-2 rounded-lg hover:bg-slate-50 cursor-pointer"
+                      className="flex items-center space-x-3 p-2 rounded-lg hover:bg-[var(--accent-light)] cursor-pointer"
                     >
                       <input
                         type="radio"
                         name={`action-${card.key}`}
                         checked={selectedAction === action}
                         onChange={() => handleActionChange(action)}
-                        className="w-4 h-4 text-blue-600"
+                        className="w-4 h-4 text-[var(--accent)]"
                       />
-                      <span className="text-sm text-slate-700">{action}</span>
+                      <span className="text-sm text-[var(--text)]">{action}</span>
                     </label>
                   ))}
                 </div>
@@ -245,24 +246,24 @@ export default function ActionCard({
               {/* Filters */}
               <div className="space-y-3">
                 <div className="flex items-center space-x-2 mb-3">
-                  <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
-                    <Filter className="w-4 h-4 text-indigo-600" />
+                  <div className="w-8 h-8 bg-[color-mix(in_srgb,var(--icon-indigo),#ffffff_92%)] rounded-lg flex items-center justify-center">
+                    <Filter className="w-4 h-4 text-[var(--icon-indigo)]" />
                   </div>
-                  <h4 className="font-semibold text-slate-800">Filters</h4>
+                  <h4 className="font-semibold text-[var(--text)]">Filters</h4>
                 </div>
                 <div className="space-y-2">
                   {card.options.filters?.map((filter, idx) => (
                     <label
                       key={idx}
-                      className="flex items-center space-x-3 p-2 rounded-lg hover:bg-slate-50 cursor-pointer"
+                      className="flex items-center space-x-3 p-2 rounded-lg hover:bg-[var(--accent-light)] cursor-pointer"
                     >
                       <input
                         type="checkbox"
                         checked={selectedFilters.includes(filter)}
                         onChange={() => handleFilterToggle(filter)}
-                        className="w-4 h-4 text-indigo-600 rounded"
+                        className="w-4 h-4 text-[var(--icon-indigo)] rounded"
                       />
-                      <span className="text-sm text-slate-700">{filter}</span>
+                      <span className="text-sm text-[var(--text)]">{filter}</span>
                     </label>
                   ))}
                 </div>
@@ -271,17 +272,17 @@ export default function ActionCard({
               {/* Settings */}
               <div className="space-y-3">
                 <div className="flex items-center space-x-2 mb-3">
-                  <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <Sliders className="w-4 h-4 text-purple-600" />
+                  <div className="w-8 h-8 bg-[color-mix(in_srgb,var(--icon-violet),#ffffff_92%)] rounded-lg flex items-center justify-center">
+                    <Sliders className="w-4 h-4 text-[var(--icon-violet)]" />
                   </div>
-                  <h4 className="font-semibold text-slate-800">Settings</h4>
+                  <h4 className="font-semibold text-[var(--text)]">Settings</h4>
                 </div>
                 <div className="space-y-3">
                   {card.options.settings &&
                     Object.entries(card.options.settings).map(
                       ([key, value]) => (
                         <div key={key}>
-                          <label className="block text-sm font-medium text-slate-700 mb-1 capitalize">
+                          <label className="block text-sm font-medium text-[var(--text2)] mb-1 capitalize">
                             {key.replace(/_/g, " ")}
                           </label>
                           {typeof value === "boolean" ? (
@@ -292,9 +293,9 @@ export default function ActionCard({
                                 onChange={(e) =>
                                   handleSettingChange(key, e.target.checked)
                                 }
-                                className="w-4 h-4 text-purple-600 rounded"
+                                className="w-4 h-4 text-[var(--icon-violet)] rounded"
                               />
-                              <span className="text-sm text-slate-600">
+                              <span className="text-sm text-[var(--text2)]">
                                 Enable
                               </span>
                             </label>
@@ -308,8 +309,8 @@ export default function ActionCard({
                                   parseFloat(e.target.value),
                                 )
                               }
-                              className="w-full px-3 py-2 border border-slate-300 rounded-lg
-                              focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                              className="w-full px-3 py-2 border border-[var(--border)] rounded-lg bg-[var(--card)] text-[var(--text)]
+                              focus:ring-2 focus:ring-[var(--icon-violet)] focus:border-transparent"
                             />
                           ) : (
                             <input
@@ -318,8 +319,8 @@ export default function ActionCard({
                               onChange={(e) =>
                                 handleSettingChange(key, e.target.value)
                               }
-                              className="w-full px-3 py-2 border border-slate-300 rounded-lg
-                              focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                              className="w-full px-3 py-2 border border-[var(--border)] rounded-lg bg-[var(--card)] text-[var(--text)]
+                              focus:ring-2 focus:ring-[var(--icon-violet)] focus:border-transparent"
                             />
                           )}
                         </div>
@@ -330,17 +331,17 @@ export default function ActionCard({
             </div>
 
             {/* ── Action buttons row ──────────────────────────────────── */}
-            <div className="flex flex-col gap-3 mt-6 pt-4 border-t border-slate-200 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 mt-6 pt-4 border-t border-[var(--border)] sm:flex-row sm:items-center sm:justify-between">
               {/* Status / selection summary */}
-              <div className="text-sm text-slate-500">
+              <div className="text-sm text-[var(--text3)]">
                 Action:{" "}
-                <span className="font-medium text-slate-700">
+                <span className="font-medium text-[var(--text)]">
                   {selectedAction || "None"}
                 </span>
                 {selectedFilters.length > 0 && (
                   <span className="ml-3">
                     Filters:{" "}
-                    <span className="font-medium text-slate-700">
+                    <span className="font-medium text-[var(--text)]">
                       {selectedFilters.length}
                     </span>
                   </span>
@@ -352,7 +353,7 @@ export default function ActionCard({
                 <button
                   onClick={handleExecute}
                   disabled={!hasSelectedFile || stepStatus === "running"}
-                  className="px-6 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white
+                  className="px-6 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white
                     rounded-lg font-semibold hover:shadow-lg hover:scale-105
                     transition-all duration-300
                     disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100
@@ -375,8 +376,8 @@ export default function ActionCard({
                 <button
                   onClick={handlePreview}
                   disabled={!hasSelectedFile || stepStatus === "running"}
-                  className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg
-                    font-semibold hover:bg-slate-50 transition-all duration-300
+                  className="px-4 py-2 border border-[var(--border)] text-[var(--text)] rounded-lg
+                    font-semibold hover:bg-[var(--accent-light)] hover:border-[var(--border-active)] transition-all duration-300
                     disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Preview
@@ -400,7 +401,7 @@ export default function ActionCard({
                     ${
                       hasFile && !downloading
                         ? "bg-green-50 border-green-300 text-green-700 hover:bg-green-100 hover:border-green-400"
-                        : "border-slate-300 text-slate-400 cursor-not-allowed opacity-60"
+                        : "border-[var(--border)] text-[var(--text3)] cursor-not-allowed opacity-60"
                     }`}
                 >
                   {downloading ? (
@@ -426,12 +427,12 @@ export default function ActionCard({
 
             {/* Hint when no file yet */}
             {!hasSelectedFile && (
-              <p className="mt-3 text-xs text-slate-400 text-right">
+              <p className="mt-3 text-xs text-[var(--text3)] text-right">
                 Select a file to enable Execute, Preview, and Download.
               </p>
             )}
             {hasSelectedFile && !hasFile && stepStatus !== "running" && (
-              <p className="mt-3 text-xs text-slate-400 text-right">
+              <p className="mt-3 text-xs text-[var(--text3)] text-right">
                 {stepStatus === "done"
                   ? "No output file was produced by this step."
                   : "Click Execute to process the dataset, then Download will become available."}

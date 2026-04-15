@@ -114,9 +114,9 @@ export default function Dashboard({ statistics, schema, dataQuality }) {
                 <h4 className="text-md font-semibold text-gray-800 mb-3">Outliers Detected</h4>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                   {Object.entries(statistics.outlier_counts).map(([col, count]) => (
-                    <div key={col} className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                    <div key={col} className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                       <div className="text-xs text-gray-600 mb-1">{col}</div>
-                      <div className="text-lg font-bold text-orange-600">{count}</div>
+                      <div className="text-lg font-bold text-blue-600">{count}</div>
                       <div className="text-xs text-gray-500">outliers</div>
                     </div>
                   ))}

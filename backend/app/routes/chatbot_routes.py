@@ -6,6 +6,9 @@ import io
 import os
 import pandas as pd
 import asyncio  # ✅ NEW
+import logging
+
+logger = logging.getLogger(__name__)
 
 from app.services.chatbot_service import (
     process_query,
@@ -72,7 +75,7 @@ async def upload_csv(file: UploadFile = File(...)):
         "last_column": None,
     }
 
-    print(f"✅ File uploaded: {safe_name}")
+    logger.info("Chatbot file uploaded: %s", safe_name)
 
     return UploadResponse(
         session_id=session_id,
@@ -92,8 +95,7 @@ async def chat(req: ChatRequest):
     if not req.query.strip():
         raise HTTPException(status_code=400, detail="Query must not be empty.")
 
-    print("🔥 CHAT API HIT")
-    print("Query:", req.query)
+    logger.info("Chatbot query received (session_id=%s)", req.session_id)
 
     try:
         # ⏱️ HARD TIMEOUT (IMPORTANT FIX)
@@ -107,17 +109,17 @@ async def chat(req: ChatRequest):
             timeout=25  # ⬅️ keep less than frontend timeout
         )
 
-        print("✅ Response ready")
+        logger.info("Chatbot response ready (session_id=%s)", req.session_id)
 
     except asyncio.TimeoutError:
-        print("⏳ Backend timeout")
+        logger.warning("Chatbot request timed out (session_id=%s)", req.session_id)
         raise HTTPException(
             status_code=504,
             detail="Request took too long. Please try again.",
         )
 
     except Exception as e:
-        print("❌ Error:", str(e))
+        logger.exception("Chatbot server error (session_id=%s)", req.session_id)
         raise HTTPException(
             status_code=500,
             detail=f"Server error: {str(e)}",

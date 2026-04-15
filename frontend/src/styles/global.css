@@ -1,14 +1,14 @@
 /* minimal global styles */
-:root { --bg: #0b1220; --fg: #e5e7eb; --muted: #94a3b8; }
+:root { --fg: var(--text); --muted: var(--text3); }
 html, body, #root { height: 100%; }
 body { margin: 0; background: var(--bg); color: var(--fg); font-family: Inter, system-ui, sans-serif; }
 .app-shell { display: flex; flex-direction: column; min-height: 100%; }
 .app-body { display: flex; gap: 1rem; }
 .app-content { flex: 1; padding: 1rem; }
-.app-footer { padding: .75rem 1rem; color: var(--muted); border-top: 1px solid #1f2937; }
-.btn { padding: .5rem .75rem; border-radius: .375rem; border: 1px solid #334155; background: #111827; color: var(--fg); }
-.card { background: #0f172a; border: 1px solid #1f2937; border-radius: .5rem; padding: 1rem; }
+.app-footer { padding: .75rem 1rem; color: var(--muted); border-top: 1px solid var(--border); }
+.btn { padding: .5rem .75rem; border-radius: .375rem; border: 1px solid var(--border); background: var(--card); color: var(--fg); }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: .5rem; padding: 1rem; }
 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: grid; place-items: center; }
-.modal-content { background: #111827; border: 1px solid #334155; border-radius: .5rem; padding: 1rem; max-width: 90vw; }
-.spinner { width: 20px; height: 20px; border: 3px solid #334155; border-top-color: #60a5fa; border-radius: 50%; animation: spin 1s linear infinite; }
+.modal-content { background: var(--card); border: 1px solid var(--border); border-radius: .5rem; padding: 1rem; max-width: 90vw; color: var(--text); }
+.spinner { width: 20px; height: 20px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg) } }

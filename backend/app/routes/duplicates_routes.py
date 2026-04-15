@@ -47,7 +47,7 @@ class DuplicatesHandleResponse(BaseModel):
     new_file: str
 
 
-@router.post("/api/duplicates/preview")
+@router.post("/duplicates/preview")
 async def preview_duplicates(request: DuplicatesPreviewRequest, current_user: UserInDB = Depends(get_current_active_user)):
     try:
         files_dir = user_files_dir(current_user.id)
@@ -119,7 +119,7 @@ async def preview_duplicates(request: DuplicatesPreviewRequest, current_user: Us
         raise HTTPException(status_code=500, detail=f"Error analyzing duplicates: {str(e)}")
 
 
-@router.post("/api/duplicates/handle")
+@router.post("/duplicates/handle")
 async def handle_duplicates(request: DuplicatesHandleRequest, current_user: UserInDB = Depends(get_current_active_user)):
     print(request)
     try:

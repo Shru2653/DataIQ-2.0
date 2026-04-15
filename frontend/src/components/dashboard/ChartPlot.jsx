@@ -22,7 +22,7 @@ export default function ChartPlot({
   config = {},
   height = 360,
 }) {
-  const seriesColors = ["#2563eb", "#10b981", "#f59e0b", "#6b7280", "#8b5cf6"];
+  const seriesColors = ["#4361ee", "#10b981", "#2563eb", "#6b7280", "#8b5cf6"];
 
   const traces = useMemo(() => {
     // If the consumer passed in prebuilt traces (array of objects with x/y/type), use them directly

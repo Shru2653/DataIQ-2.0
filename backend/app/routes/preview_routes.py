@@ -67,7 +67,7 @@ def _load(filename: str, user: UserInDB) -> pd.DataFrame:
         raise HTTPException(400, f"Failed to read file: {exc}")
 
 
-@router.get("/api/preview")
+@router.get("/preview")
 async def preview_file(
     filename: str = Query(..., description="Filename to preview"),
     rows: int     = Query(20, ge=1, le=100, description="Number of rows to return"),

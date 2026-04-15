@@ -156,7 +156,7 @@ def _apply_scaling(df: pd.DataFrame, cols: List[str], settings: NormalizeSetting
     return df, cols
 
 
-@router.post("/api/normalize/preview")
+@router.post("/normalize/preview")
 async def normalize_preview(request: NormalizeRequest, current_user: UserInDB = Depends(get_current_active_user)):
     try:
         df = _load_dataframe_for_processing_user(request.filename, current_user)
@@ -178,7 +178,7 @@ async def normalize_preview(request: NormalizeRequest, current_user: UserInDB = 
         raise HTTPException(status_code=500, detail=f"Error generating normalize preview: {str(e)}")
 
 
-@router.post("/api/normalize/apply")
+@router.post("/normalize/apply")
 async def normalize_apply(request: NormalizeRequest, current_user: UserInDB = Depends(get_current_active_user)):
     try:
         df = _load_dataframe_for_processing_user(request.filename, current_user)

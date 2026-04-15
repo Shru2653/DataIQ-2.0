@@ -59,18 +59,18 @@ const DRIFT_STATUS = {
 
 function SkeletonCard() {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 lg:p-7 animate-pulse">
+    <div className="bg-[var(--card)] rounded-xl border border-[var(--border)] shadow-sm p-6 lg:p-7 animate-pulse">
       <div className="flex items-start justify-between mb-3">
-        <div className="w-14 h-14 rounded-lg bg-slate-200" />
-        <div className="w-24 h-5 rounded-full bg-slate-200" />
+        <div className="w-14 h-14 rounded-lg bg-[color-mix(in_srgb,var(--border),#ffffff_35%)]" />
+        <div className="w-24 h-5 rounded-full bg-[color-mix(in_srgb,var(--border),#ffffff_35%)]" />
       </div>
-      <div className="w-1/2 h-4 rounded bg-slate-200 mb-3" />
+      <div className="w-1/2 h-4 rounded bg-[color-mix(in_srgb,var(--border),#ffffff_35%)] mb-3" />
       <div className="flex items-center justify-between mb-1.5">
-        <div className="w-20 h-3 rounded bg-slate-150" />
-        <div className="w-12 h-3 rounded bg-slate-200" />
+        <div className="w-20 h-3 rounded bg-[color-mix(in_srgb,var(--border),#ffffff_45%)]" />
+        <div className="w-12 h-3 rounded bg-[color-mix(in_srgb,var(--border),#ffffff_35%)]" />
       </div>
-      <div className="h-1.5 rounded-full bg-slate-100" />
-      <div className="w-32 h-2.5 rounded bg-slate-100 mt-3" />
+      <div className="h-1.5 rounded-full bg-[color-mix(in_srgb,var(--border),#ffffff_55%)]" />
+      <div className="w-32 h-2.5 rounded bg-[color-mix(in_srgb,var(--border),#ffffff_55%)] mt-3" />
     </div>
   );
 }
@@ -88,7 +88,7 @@ function DriftCard({ result }) {
   return (
     <motion.div
       variants={item}
-      className={`h-full flex flex-col bg-white rounded-xl border shadow-sm p-6 lg:p-7 min-h-[260px] hover:shadow-md transition-shadow ${config.card}`}
+      className={`h-full flex flex-col bg-[var(--card)] rounded-xl border shadow-sm p-6 lg:p-7 min-h-[260px] hover:shadow-md transition-shadow border-[var(--border)] ${config.card}`}
     >
       {/* Header: icon + status badge */}
       <div className="flex items-start justify-between mb-3">
@@ -106,14 +106,14 @@ function DriftCard({ result }) {
 
       {/* Column name */}
       <p
-        className="text-sm font-bold text-slate-800 mb-3 truncate"
+        className="text-sm font-bold text-[var(--text)] mb-3 truncate"
         title={result.column}
       >
         {result.column}
       </p>
 
       {/* Drift score row */}
-      <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5">
+      <div className="flex items-center justify-between text-xs text-[var(--text2)] mb-1.5">
         <span>Drift Score (KS)</span>
         <span className={`font-semibold ${config.icon}`}>
           {(result.drift_score ?? 0).toFixed(4)}
@@ -121,7 +121,7 @@ function DriftCard({ result }) {
       </div>
 
       {/* Animated score bar */}
-      <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden mt-2 mb-2.5">
+      <div className="w-full h-1.5 rounded-full bg-[color-mix(in_srgb,var(--border),#ffffff_55%)] overflow-hidden mt-2 mb-2.5">
         <motion.div
           className={`h-full rounded-full ${config.bar}`}
           initial={{ width: 0 }}
@@ -131,9 +131,9 @@ function DriftCard({ result }) {
       </div>
 
       {/* p-value */}
-      <div className="mt-auto pt-1 text-xs text-slate-400">
+      <div className="mt-auto pt-1 text-xs text-[var(--text3)]">
         p-value:{" "}
-        <span className="font-medium text-slate-600">
+        <span className="font-medium text-[var(--text2)]">
           {(result.p_value ?? 0).toFixed(4)}
         </span>
         {result.p_value < 0.05 && (
@@ -256,23 +256,23 @@ function SummaryStrip({ summary, prevFile, currFile }) {
   if (!summary) return null;
 
   return (
-    <div className="mt-5 pt-4 border-t border-teal-100">
+    <div className="mt-5 pt-4 border-t border-[var(--border)]">
       {/* File pair label */}
-      <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500 mb-3">
-        <Database className="w-3.5 h-3.5 text-slate-400" />
-        <span className="font-medium text-slate-700 truncate max-w-[160px]">
+      <div className="flex flex-wrap items-center gap-1.5 text-xs text-[var(--text2)] mb-3">
+        <Database className="w-3.5 h-3.5 text-[var(--text3)]" />
+        <span className="font-medium text-[var(--text)] truncate max-w-[160px]">
           {prevFile}
         </span>
-        <ArrowRight className="w-3 h-3 text-slate-400" />
-        <span className="font-medium text-slate-700 truncate max-w-[160px]">
+        <ArrowRight className="w-3 h-3 text-[var(--text3)]" />
+        <span className="font-medium text-[var(--text)] truncate max-w-[160px]">
           {currFile}
         </span>
       </div>
 
       {/* Count pills */}
       <div className="flex flex-wrap gap-2.5">
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border bg-teal-100 border-teal-200 text-teal-700">
-          <span className="w-2 h-2 rounded-full flex-shrink-0 bg-teal-500" />
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border bg-[var(--accent-light)] border-[color-mix(in_srgb,var(--accent),#ffffff_60%)] text-[var(--accent)]">
+          <span className="w-2 h-2 rounded-full flex-shrink-0 bg-[var(--accent)]" />
           {summary.total_columns_checked} Column
           {summary.total_columns_checked !== 1 ? "s" : ""} Checked
         </span>
@@ -320,7 +320,7 @@ function SectionHeading({ icon: Icon, label, count, iconClass, badgeClass }) {
       >
         <Icon className="w-4 h-4" />
       </div>
-      <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide">
+      <h3 className="text-sm font-bold text-[var(--text)] uppercase tracking-wide">
         {label}
       </h3>
       {count != null && (
@@ -339,16 +339,16 @@ function SectionHeading({ icon: Icon, label, count, iconClass, badgeClass }) {
 function FileSelect({ label, value, onChange, options, exclude }) {
   return (
     <div>
-      <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
+      <label className="block text-xs font-semibold text-[var(--text2)] mb-1.5 uppercase tracking-wide">
         {label}
       </label>
       <div className="relative">
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full appearance-none px-3 py-2 pr-8 text-sm border border-slate-300
-            rounded-lg bg-white text-slate-700
-            focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-teal-400
+          className="w-full appearance-none px-3 py-2 pr-8 text-sm border border-[var(--border)]
+            rounded-lg bg-[var(--card)] text-[var(--text)]
+            focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--border-active)]
             disabled:opacity-50 disabled:cursor-not-allowed
             transition-colors"
         >
@@ -361,7 +361,7 @@ function FileSelect({ label, value, onChange, options, exclude }) {
               </option>
             ))}
         </select>
-        <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+        <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text3)]" />
       </div>
     </div>
   );
@@ -384,7 +384,7 @@ function FileSelect({ label, value, onChange, options, exclude }) {
  *   filename {string | null | undefined} – the currently selected file; pre-fills
  *                                          the "Current Dataset" selector.
  */
-export default function DriftDetectionPanel({ filename }) {
+export default function DriftDetectionPanel({ filename, rawOptions: rawOptionsProp, cleanedOptions: cleanedOptionsProp }) {
   const { analyze, isLoading, isError, error, data, reset } =
     useDriftDetection();
 
@@ -398,21 +398,21 @@ export default function DriftDetectionPanel({ filename }) {
   // Previous Dataset (Baseline) — original uploaded files only
   const rawOptions = useMemo(
     () =>
-      (rawQuery.data?.files ?? [])
+      (rawOptionsProp ?? (rawQuery.data?.files ?? []))
         .map((f) => f.filename)
         .filter(Boolean)
         .sort(),
-    [rawQuery.data],
+    [rawQuery.data, rawOptionsProp],
   );
 
   // Current Dataset — cleaned / processed files only
   const cleanedOptions = useMemo(
     () =>
-      (cleanedQuery.data?.files ?? [])
+      (cleanedOptionsProp ?? (cleanedQuery.data?.files ?? []))
         .map((f) => f.filename)
         .filter(Boolean)
         .sort(),
-    [cleanedQuery.data],
+    [cleanedQuery.data, cleanedOptionsProp],
   );
 
   // ── Sync current file when parent selection changes ───────────────────────
@@ -457,19 +457,19 @@ export default function DriftDetectionPanel({ filename }) {
       initial={fadeInUp.initial}
       animate={fadeInUp.animate}
       transition={fadeInUp.transition}
-      className="w-full bg-white border border-gray-200 rounded-xl shadow-sm p-8 lg:p-10"
+      className="w-full bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-sm p-8 lg:p-10"
     >
       {/* ── Panel header ──────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-gradient-to-r from-teal-500 to-cyan-600 rounded-xl flex items-center justify-center shadow-md">
+          <div className="w-12 h-12 bg-[var(--icon-blue)] rounded-xl flex items-center justify-center shadow-md">
             <GitCompare className="w-6 h-6 text-white" />
           </div>
           <div className="flex flex-col space-y-1">
-            <h2 className="text-xl font-semibold text-slate-800">
+            <h2 className="text-xl font-semibold text-[var(--text)]">
               Data Drift &amp; Schema Monitoring
             </h2>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-[var(--text2)]">
               Compare two datasets to detect distribution drift and schema
               changes
             </p>
@@ -481,8 +481,8 @@ export default function DriftDetectionPanel({ filename }) {
           <button
             onClick={handleAnalyze}
             disabled={isLoading || !canAnalyze}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-teal-700
-              bg-teal-100 hover:bg-teal-200 rounded-lg transition-colors
+            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[var(--accent)]
+              bg-[var(--accent-light)] hover:bg-[color-mix(in_srgb,var(--accent-light),#ffffff_40%)] rounded-lg transition-colors
               disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <RefreshCw
@@ -494,7 +494,7 @@ export default function DriftDetectionPanel({ filename }) {
       </div>
 
       {/* ── File selector card ─────────────────────────────────────────────── */}
-      <div className="bg-white/70 border border-teal-100 rounded-xl p-4 mb-5">
+      <div className="bg-[color-mix(in_srgb,var(--bg),#ffffff_60%)] border border-[var(--border)] rounded-xl p-4 mb-5">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
           <FileSelect
             label="Previous Dataset (Baseline)"
@@ -526,7 +526,7 @@ export default function DriftDetectionPanel({ filename }) {
           onClick={handleAnalyze}
           disabled={isLoading || !canAnalyze}
           className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2
-            bg-gradient-to-r from-teal-500 to-cyan-600 text-white text-sm font-semibold
+            bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-sm font-semibold
             rounded-lg shadow hover:shadow-md hover:scale-[1.02]
             transition-all duration-200
             disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100 disabled:shadow-none"
@@ -545,12 +545,12 @@ export default function DriftDetectionPanel({ filename }) {
         </button>
 
         {/* Hints when no files are available in a given category */}
-        {rawOptions.length === 0 && !rawQuery.isLoading && (
+        {rawOptions.length === 0 && !rawOptionsProp && !rawQuery.isLoading && (
           <p className="mt-2 text-xs text-slate-400">
             No raw datasets found. Upload a dataset to use it as the baseline.
           </p>
         )}
-        {cleanedOptions.length === 0 && !cleanedQuery.isLoading && (
+        {cleanedOptions.length === 0 && !cleanedOptionsProp && !cleanedQuery.isLoading && (
           <p className="mt-2 text-xs text-slate-400">
             No cleaned datasets found. Run the pipeline on a dataset first to
             generate a processed version.
@@ -600,8 +600,8 @@ export default function DriftDetectionPanel({ filename }) {
       {!isLoading && data && (
         <div className="space-y-6">
           {/* Info banner */}
-          <div className="flex items-start gap-2 p-3 rounded-lg bg-white/60 border border-teal-100 text-xs text-slate-600">
-            <Info className="w-3.5 h-3.5 text-teal-500 flex-shrink-0 mt-0.5" />
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-[color-mix(in_srgb,var(--bg),#ffffff_60%)] border border-[var(--border)] text-xs text-[var(--text2)]">
+            <Info className="w-3.5 h-3.5 text-[var(--accent)] flex-shrink-0 mt-0.5" />
             <span>
               Schema changes compare column names and data types between the two
               files. Drift scores use the Kolmogorov-Smirnov two-sample test — a

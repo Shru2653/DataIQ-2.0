@@ -34,7 +34,7 @@ const QUICK_ACTIONS = [
   { label: "Pie Chart",   icon: <PieChart size={13} />,     query: "Show me a pie chart",                color: "pink" },
   { label: "Histogram",   icon: <Activity size={13} />,     query: "Show histogram",                     color: "indigo" },
   { label: "Scatter",     icon: <Sparkles size={13} />,     query: "Show scatter plot",                  color: "teal" },
-  { label: "Heatmap",     icon: <Layers size={13} />,       query: "Show correlation heatmap",           color: "orange" },
+  { label: "Heatmap",     icon: <Layers size={13} />,       query: "Show correlation heatmap",           color: "indigo" },
   { label: "Top 10",      icon: <TrendingUp size={13} />,   query: "Show top 10 rows",                   color: "green" },
   { label: "Sort",        icon: <ArrowUpDown size={13} />,  query: "Sort by first column descending",    color: "gray" },
   { label: "Group By",    icon: <Hash size={13} />,         query: "Group by category and sum",          color: "purple" },
@@ -54,7 +54,7 @@ const ACTION_COLOR_MAP = {
   pink:   "bg-pink-50 hover:bg-pink-100 text-pink-700 border-pink-200 hover:border-pink-400",
   indigo: "bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200 hover:border-indigo-400",
   teal:   "bg-teal-50 hover:bg-teal-100 text-teal-700 border-teal-200 hover:border-teal-400",
-  orange: "bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200 hover:border-orange-400",
+  orange: "bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200 hover:border-blue-400",
   gray:   "bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-300 hover:border-gray-400",
 };
 
@@ -144,8 +144,9 @@ function TypingIndicator() {
 }
 
 // ── Main Chatbot component ────────────────────────────────────────────────────
-export default function Chatbot({ filename: propFilename }) {
-  const [open, setOpen]               = useState(false);
+export default function Chatbot({ filename: propFilename, mode = "floating" }) {
+  const isEmbedded = mode === "embedded";
+  const [open, setOpen]               = useState(() => (isEmbedded ? true : false));
   const [messages, setMessages]       = useState([
     {
       sender: "bot",
@@ -176,6 +177,11 @@ export default function Chatbot({ filename: propFilename }) {
       );
     }
   }, [propFilename]);
+
+  // Ensure embedded mode always stays open
+  useEffect(() => {
+    if (isEmbedded) setOpen(true);
+  }, [isEmbedded]);
 
   // Auto-scroll
   useEffect(() => {
@@ -304,12 +310,18 @@ export default function Chatbot({ filename: propFilename }) {
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="fixed bottom-6 right-6 z-[9999] flex flex-col items-end gap-3">
+    <div className={isEmbedded ? "w-full h-full" : "fixed bottom-6 right-6 z-[9999] flex flex-col items-end gap-3"}>
 
       {/* ── Chat panel ── */}
       {open && (
-        <div className="w-[360px] bg-gray-50 rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden"
-          style={{ height: "560px" }}>
+        <div
+          className={`flex flex-col overflow-hidden ${
+            isEmbedded
+              ? "w-full h-full bg-gray-50"
+              : "w-[360px] bg-gray-50 rounded-2xl shadow-2xl border border-gray-200"
+          }`}
+          style={isEmbedded ? undefined : { height: "560px" }}
+        >
 
           {/* Header */}
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-3 flex items-center justify-between flex-shrink-0">
@@ -332,12 +344,14 @@ export default function Chatbot({ filename: propFilename }) {
               >
                 <RefreshCw size={14} />
               </button>
-              <button
-                onClick={() => setOpen(false)}
-                className="p-1.5 rounded-lg hover:bg-white/20 transition text-white"
-              >
-                <X size={16} />
-              </button>
+              {!isEmbedded && (
+                <button
+                  onClick={() => setOpen(false)}
+                  className="p-1.5 rounded-lg hover:bg-white/20 transition text-white"
+                >
+                  <X size={16} />
+                </button>
+              )}
             </div>
           </div>
 
@@ -371,7 +385,7 @@ export default function Chatbot({ filename: propFilename }) {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 scroll-smooth">
+          <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-3 scroll-smooth">
             {messages.map((msg, i) => (
               <Message key={i} msg={msg} />
             ))}
@@ -436,21 +450,23 @@ export default function Chatbot({ filename: propFilename }) {
       )}
 
       {/* ── Floating toggle button ── */}
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className={`w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all duration-300 ${
-          open
-            ? "bg-gray-700 hover:bg-gray-800 rotate-0"
-            : "bg-gradient-to-br from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-        }`}
-        title={open ? "Close chat" : "Open DataIQ Assistant"}
-      >
-        {open ? (
-          <X size={22} className="text-white" />
-        ) : (
-          <MessageCircle size={22} className="text-white" />
-        )}
-      </button>
+      {!isEmbedded && (
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className={`w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all duration-300 ${
+            open
+              ? "bg-gray-700 hover:bg-gray-800 rotate-0"
+              : "bg-gradient-to-br from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+          }`}
+          title={open ? "Close chat" : "Open DataIQ Assistant"}
+        >
+          {open ? (
+            <X size={22} className="text-white" />
+          ) : (
+            <MessageCircle size={22} className="text-white" />
+          )}
+        </button>
+      )}
     </div>
   );
 }

@@ -8,10 +8,10 @@ import {
   fadeIn, fadeInUp, staggerContainer, modalBackdrop, modalContent,
 } from "../utils/animations";
 
-import Navbar from "../components/layout/Navbar";
 import FileUploader from "../components/files/FileUploader";
 import FileList from "../components/files/FileList";
 import CleanedFiles from "../components/files/CleanedFiles";
+import DatasetVersionList from "../components/dashboard/DatasetVersionList";
 import ProcessingPanel from "../components/processing/ProcessingPanel";
 import PreviewModal from "../components/processing/PreviewModal";
 import Dashboard from "../components/dashboard/Dashboard";
@@ -41,21 +41,21 @@ import axiosClient from "../api/axiosClient";
 // Colour constants
 // ─────────────────────────────────────────────────────────────────────────────
 const KPI_COLOR = {
-  blue:   { card: "bg-blue-50 border-blue-200",     value: "text-blue-700"   },
-  green:  { card: "bg-green-50 border-green-200",   value: "text-green-700"  },
-  amber:  { card: "bg-amber-50 border-amber-200",   value: "text-amber-700"  },
-  red:    { card: "bg-red-50 border-red-200",       value: "text-red-700"    },
-  purple: { card: "bg-purple-50 border-purple-200", value: "text-purple-700" },
+  blue:   { card: "bg-white border-blue-200",        value: "text-blue-700"   },
+  green:  { card: "bg-white border-emerald-200",     value: "text-emerald-700"  },
+  amber:  { card: "bg-white border-amber-200",       value: "text-amber-700"  },
+  red:    { card: "bg-white border-red-200",         value: "text-red-700"    },
+  purple: { card: "bg-white border-purple-200",      value: "text-purple-700" },
 };
 
 const PERF_STYLE = {
-  Excellent: { bg:"bg-green-50", border:"border-green-300", text:"text-green-700", badge:"bg-green-100", dot:"bg-green-500" },
-  Good:      { bg:"bg-blue-50",  border:"border-blue-300",  text:"text-blue-700",  badge:"bg-blue-100",  dot:"bg-blue-500"  },
-  Average:   { bg:"bg-amber-50", border:"border-amber-300", text:"text-amber-700", badge:"bg-amber-100", dot:"bg-amber-400" },
-  Poor:      { bg:"bg-red-50",   border:"border-red-300",   text:"text-red-700",   badge:"bg-red-100",   dot:"bg-red-500"   },
+  Excellent: { bg:"bg-emerald-50", border:"border-emerald-300", text:"text-emerald-700", badge:"bg-emerald-100", dot:"bg-emerald-500" },
+  Good:      { bg:"bg-blue-50",    border:"border-blue-300",    text:"text-blue-700",    badge:"bg-blue-100",    dot:"#4361ee"  },
+  Average:   { bg:"bg-amber-50",   border:"border-amber-300",   text:"text-amber-700",   badge:"bg-amber-100",   dot:"bg-amber-400" },
+  Poor:      { bg:"bg-red-50",     border:"border-red-300",     text:"text-red-700",     badge:"bg-red-100",     dot:"bg-red-500"   },
 };
 
-const BAR_COLORS = ["#4f46e5","#7c3aed","#2563eb","#0284c7","#0891b2","#059669","#16a34a","#ca8a04"];
+const BAR_COLORS = ["#4361ee","#5c4ee8","#9333ea","#4f72f5","#818cf8","#6366f1","#4f46e5","#4338ca"];
 
 const IMPACT_STYLE = {
   high:   { bg: "bg-red-50",   border: "border-red-200",   text: "text-red-700",   dot: "bg-red-500"   },
@@ -79,7 +79,7 @@ function KpiCard({ kpi }) {
 
 function ChartCard({ chart, dragHandleProps }) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border overflow-hidden h-full">
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden h-full">
       <div className="px-4 pt-3 pb-1 flex items-center gap-2">
         <div {...dragHandleProps} className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 flex-shrink-0">
           <GripVertical size={16} />
@@ -112,7 +112,7 @@ function ComparePanel({ serverFiles, currentFile }) {
     if (!currentFile || !fileB) return;
     setLoading(true); setError(null); setResult(null);
     try {
-      const res = await axiosClient.post("/api/dashboard/compare", { filename_a: currentFile, filename_b: fileB });
+      const res = await axiosClient.post("/dashboard/compare", { filename_a: currentFile, filename_b: fileB });
       setResult(res.data);
     } catch (e) { setError(e?.response?.data?.detail ?? e?.message ?? "Compare failed."); }
     finally { setLoading(false); }
@@ -132,7 +132,7 @@ function ComparePanel({ serverFiles, currentFile }) {
           <ChevronDown size={12} className="absolute right-2 top-3 text-gray-400 pointer-events-none" />
         </div>
         <button onClick={compare} disabled={!fileB || !currentFile || loading}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-40 rounded-lg transition">
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg transition" style={{background: '#4361ee'}} onMouseEnter={(e) => e.target.style.background = '#3e56d4'} onMouseLeave={(e) => e.target.style.background = '#4361ee'}>
           {loading ? <RefreshCw size={13} className="animate-spin" /> : <GitCompare size={13} />}
           Compare
         </button>
@@ -222,7 +222,7 @@ function PredictionForm({ specs, values, onChange }) {
             <select
               value={values[spec.name] ?? spec.default_value ?? ""}
               onChange={(e) => onChange(spec.name, e.target.value)}
-              className="w-full text-sm border-2 border-gray-200 rounded-lg px-3 py-2 bg-white text-gray-800 focus:outline-none focus:border-indigo-400 cursor-pointer"
+              className="w-full text-sm border-2 border-gray-200 rounded-lg px-3 py-2 bg-white text-gray-800 focus:outline-none cursor-pointer" style={{focusBorderColor: '#4361ee'}}
             >
               {(spec.options ?? []).map((opt) => (
                 <option key={opt} value={opt}>{opt}</option>
@@ -238,7 +238,7 @@ function PredictionForm({ specs, values, onChange }) {
                 max={spec.max_val ?? undefined}
                 step="any"
                 placeholder={spec.mean_val != null ? `avg: ${spec.mean_val?.toFixed(1)}` : "Enter value"}
-                className="w-full text-sm border-2 border-gray-200 rounded-lg px-3 py-2 bg-white text-gray-800 focus:outline-none focus:border-indigo-400"
+                className="w-full text-sm border-2 border-gray-200 rounded-lg px-3 py-2 bg-white text-gray-800 focus:outline-none" style={{focusBorderColor: '#4361ee'}}
               />
               {spec.mean_val != null && (
                 <button
@@ -293,8 +293,7 @@ function PredictionResult({ result, targetColumn, taskType }) {
                 <div key={cls} className="flex items-center gap-3">
                   <span className="text-xs font-medium text-gray-700 w-28 truncate">{cls}</span>
                   <div className="flex-1 bg-gray-100 rounded-full h-2.5 overflow-hidden">
-                    <div className="h-full rounded-full bg-indigo-500 transition-all"
-                      style={{ width: `${pct}%` }} />
+                    <div className="h-full rounded-full transition-all" style={{background: '#4361ee', width: `${pct}%` }} />
                   </div>
                   <span className="text-xs font-bold text-gray-700 w-10 text-right">{pct}%</span>
                 </div>
@@ -304,7 +303,7 @@ function PredictionResult({ result, targetColumn, taskType }) {
       )}
 
       {/* Plain-English explanation */}
-      <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-5">
+      <div className="bg-blue-50 border border-blue-300 rounded-xl p-5">
         <div className="flex items-start gap-2 mb-3">
           <Brain size={16} className="text-indigo-500 flex-shrink-0 mt-0.5" />
           <p className="text-sm font-semibold text-indigo-800">Why this prediction?</p>
@@ -468,7 +467,7 @@ function MLPanel({ filename }) {
     <div className="space-y-6">
 
       {/* ── Tip banner ──────────────────────────────────────────────────── */}
-      <div className="flex items-start gap-3 bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3">
+      <div className="flex items-start gap-3 bg-blue-50 border border-blue-300 rounded-xl px-4 py-3">
         <Sparkles size={16} className="text-indigo-500 flex-shrink-0 mt-0.5" />
         <div className="text-xs text-indigo-700">
           <p className="font-semibold mb-0.5">ML AutoPredictor — works with ANY dataset</p>
@@ -486,21 +485,21 @@ function MLPanel({ filename }) {
       )}
 
       {/* ── Target selector + Train ──────────────────────────────────────── */}
-      <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 space-y-4">
-        <p className="text-sm font-semibold text-gray-700">Step 1 — Select target column &amp; train model</p>
+      <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
+        <p className="text-sm font-semibold text-gray-800">Step 1 — Select target column &amp; train model</p>
 
         {loadingCols ? (
-          <div className="flex items-center gap-2 text-sm text-gray-400">
+          <div className="flex items-center gap-2 text-sm text-gray-500">
             <RefreshCw size={13} className="animate-spin" /> Loading columns…
           </div>
         ) : columns.length === 0 ? (
           <input type="text" value={target} onChange={(e) => setTarget(e.target.value)}
             placeholder="Type column name e.g. salary"
-            className="w-full text-sm border-2 border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-indigo-400" />
+            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white text-gray-800 focus:outline-none" style={{focusBorderColor: '#4361ee'}} />
         ) : (
           <>
             <select value={target} onChange={(e) => { setTarget(e.target.value); setTrainResult(null); setPredResult(null); }}
-              className="w-full text-sm border-2 border-gray-300 rounded-lg px-3 py-2.5 bg-white text-gray-800 font-medium focus:outline-none focus:border-indigo-500 cursor-pointer">
+              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 bg-white text-gray-800 font-medium focus:outline-none cursor-pointer" style={{focusBorderColor: '#4361ee'}}>
               <option value="">— choose a column to predict —</option>
               {goodCols.length > 0 && (
                 <optgroup label="⭐ Recommended — great targets">
@@ -547,7 +546,7 @@ function MLPanel({ filename }) {
 
         <button onClick={train}
           disabled={!target || loadingTrain || selectedColInfo?.recommendation === "avoid"}
-          className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition">
+          className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition" style={{background: '#4361ee'}} onMouseEnter={(e) => e.target.style.background = '#3e56d4'} onMouseLeave={(e) => e.target.style.background = '#4361ee'}>
           {loadingTrain
             ? <><RefreshCw size={14} className="animate-spin" /> Training model…</>
             : <><FlaskConical size={14} /> Train Model</>
@@ -606,38 +605,38 @@ function MLPanel({ filename }) {
                 {trainResult.accuracy != null && (
                   <div className="bg-white border border-gray-200 rounded-xl p-4 text-center">
                     <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold mb-1">Accuracy</p>
-                    <p className={`text-3xl font-bold ${perf.text}`}>{trainResult.accuracy}%</p>
+                    <p className={`text-3xl font-bold text-indigo-600`}>{trainResult.accuracy}%</p>
                     <p className="text-xs text-gray-400 mt-1">correct predictions</p>
                   </div>
                 )}
                 {trainResult.r2_score != null && (
                   <div className="bg-white border border-gray-200 rounded-xl p-4 text-center">
                     <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold mb-1">R² Score</p>
-                    <p className={`text-3xl font-bold ${perf.text}`}>{trainResult.r2_score}</p>
+                    <p className={`text-3xl font-bold text-indigo-600`}>{trainResult.r2_score}</p>
                     <p className="text-xs text-gray-400 mt-1">variance explained</p>
                   </div>
                 )}
                 {trainResult.rmse != null && (
                   <div className="bg-white border border-gray-200 rounded-xl p-4 text-center">
                     <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold mb-1">RMSE</p>
-                    <p className="text-3xl font-bold text-gray-700">{trainResult.rmse}</p>
+                    <p className="text-3xl font-bold text-gray-600">{trainResult.rmse}</p>
                     <p className="text-xs text-gray-400 mt-1">avg error</p>
                   </div>
                 )}
                 <div className="bg-white border border-gray-200 rounded-xl p-4 text-center">
                   <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold mb-1">Features</p>
-                  <p className="text-3xl font-bold text-gray-700">{trainResult.features_used}</p>
+                  <p className="text-3xl font-bold text-gray-600">{trainResult.features_used}</p>
                   <p className="text-xs text-gray-400 mt-1">used in model</p>
                 </div>
                 <div className="bg-white border border-gray-200 rounded-xl p-4 text-center">
                   <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold mb-1">Trained on</p>
-                  <p className="text-3xl font-bold text-gray-700">{trainResult.training_rows?.toLocaleString()}</p>
+                  <p className="text-3xl font-bold text-gray-600">{trainResult.training_rows?.toLocaleString()}</p>
                   <p className="text-xs text-gray-400 mt-1">rows</p>
                 </div>
               </div>
 
               {/* Insight */}
-              <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-5 py-4">
+              <div className="bg-blue-50 border border-blue-300 rounded-xl px-5 py-4">
                 <div className="flex items-start gap-2">
                   <Sparkles size={15} className="text-indigo-500 flex-shrink-0 mt-0.5" />
                   <p className="text-sm text-indigo-800 leading-relaxed">{trainResult.insight}</p>
@@ -657,7 +656,7 @@ function MLPanel({ filename }) {
                         style={{ backgroundColor: BAR_COLORS[i % BAR_COLORS.length] + "22" }}>
                         <span className="text-[9px] font-bold" style={{ color: BAR_COLORS[i % BAR_COLORS.length] }}>{i+1}</span>
                       </div>
-                      <span className="text-xs text-gray-700 w-36 truncate font-medium">{fi.feature}</span>
+                      <span className="text-xs text-gray-600 w-36 truncate font-medium">{fi.feature}</span>
                       <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
                         <div className="h-full rounded-full" style={{
                           width: `${fi.importance_pct}%`,
@@ -666,7 +665,7 @@ function MLPanel({ filename }) {
                           transition: "width 0.6s ease",
                         }} />
                       </div>
-                      <span className="text-xs font-bold text-gray-700 w-12 text-right">{fi.importance_pct}%</span>
+                      <span className="text-xs font-bold text-gray-600 w-12 text-right">{fi.importance_pct}%</span>
                     </div>
                   ))}
                 </div>
@@ -674,7 +673,7 @@ function MLPanel({ filename }) {
 
               {/* CTA to predict */}
               <button onClick={() => setActiveTab("predict")}
-                className="w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition">
+                className="w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold rounded-xl transition" style={{color: '#4361ee', backgroundColor: '#eef0f6', borderColor: '#e8eaf0'}} onMouseEnter={(e) => e.target.style.backgroundColor = '#d4d8e5'} onMouseLeave={(e) => e.target.style.backgroundColor = '#eef0f6'}>
                 <Brain size={16} /> Make a Prediction with this Model
                 <ArrowRight size={14} />
               </button>
@@ -686,9 +685,9 @@ function MLPanel({ filename }) {
             <div className="space-y-5">
 
               {specs.length > 0 ? (
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 space-y-4">
+                <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
                   <div className="flex items-center justify-between flex-wrap gap-2">
-                    <p className="text-sm font-semibold text-gray-700">
+                    <p className="text-sm font-semibold text-gray-800">
                       Step 2 — Enter values for top {specs.length} features
                     </p>
                     <span className="text-xs text-gray-400">Defaults = dataset averages</span>
@@ -697,7 +696,7 @@ function MLPanel({ filename }) {
                   <PredictionForm specs={specs} values={formValues} onChange={handleFormChange} />
 
                   <button onClick={predict} disabled={loadingPred}
-                    className="flex items-center gap-2 px-6 py-3 text-sm font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 rounded-xl transition shadow-sm">
+                    className="flex items-center gap-2 px-6 py-3 text-sm font-bold text-white rounded-xl transition shadow-sm" style={{background: '#4361ee'}} onMouseEnter={(e) => e.target.style.background = '#3e56d4'} onMouseLeave={(e) => e.target.style.background = '#4361ee'}>
                     {loadingPred
                       ? <><RefreshCw size={15} className="animate-spin" /> Predicting…</>
                       : <><Brain size={15} /> Get Prediction + Explanation</>
@@ -791,8 +790,6 @@ function exportCSV(statistics, schema, filename) {
 // Home
 // ─────────────────────────────────────────────────────────────────────────────
 export default function Home() {
-  const sidebarOpen       = useAppStore((s) => s.sidebarOpen);
-  const setSidebarOpen    = useAppStore((s) => s.setSidebarOpen);
   const serverFiles       = useAppStore((s) => s.serverFiles);
   const setServerFiles    = useAppStore((s) => s.setServerFiles);
   const selectedFile      = useAppStore((s) => s.selectedFile);
@@ -932,7 +929,7 @@ export default function Home() {
       if (!fileToUse) { alert("Please upload or select a file first."); return; }
       const fname = fileToUse.filename || fileToUse.name || fileToUse.id || fileToUse;
       setPreviewLoading(true);
-      const dashRes = await axiosClient.post("/api/dashboard/auto", { filename: fname });
+      const dashRes = await axiosClient.post("/dashboard/auto", { filename: fname });
       const stats   = dashRes.data.statistics;
       const charts  = stats?.charts ?? [];
       setLatestDashboard({ filename: fname, statistics: stats, schema: dashRes.data.schema, kpis: stats?.kpis??[], charts });
@@ -968,32 +965,32 @@ export default function Home() {
       onDownload: async () => downloadFromTemp(useAppStore.getState().processingSteps?.inspect?.output?.new_file) },
     { key:"missing", title:"Handle Missing Values", description:"Detect, analyze, and resolve missing data points with intelligent strategies.", icon:Target, color:"indigo", delay:0.2, category:"cleaning",
       options:{ actions:["Drop Rows","Fill Forward","Fill Backward","Mean/Median Fill","Custom Value"], filters:["All Columns","Numeric Only","Text Only","High Missing %","Low Missing %"], settings:{threshold:0.5,method:"mean",custom_value:""} },
-      onRun: async ({action,filters,settings}) => { if (!selectedId) return; updateProcessingStep("missing",{status:"running"}); try { const actionMap={"Drop Rows":"drop","Fill Forward":"forward","Fill Backward":"backward","Mean/Median Fill":"mean","Custom Value":"custom"}; const filterMap=(arr)=>arr?.includes("Numeric Only")?"numeric":arr?.includes("Text Only")?"text":"all"; const res = await missing.execute({filename:selectedId,action:actionMap[action]||"mean",filter:filterMap(filters),threshold:settings?.threshold??0.5,custom_value:settings?.custom_value??null}); updateProcessingStep("missing",{status:"done",output:res}); const prev = await axiosClient.post("/api/datatypes/preview",{filename:res?.new_file||res?.data?.new_file||selectedId}); openPreview({before:[],after:Array.isArray(prev.data?.preview_data)?prev.data.preview_data:[]}); datasetsQuery.refetch?.(); } catch(e){ updateProcessingStep("missing",{status:"error",error:e?.message}); } },
+      onRun: async ({action,filters,settings}) => { if (!selectedId) return; updateProcessingStep("missing",{status:"running"}); try { const actionMap={"Drop Rows":"drop","Fill Forward":"forward","Fill Backward":"backward","Mean/Median Fill":"mean","Custom Value":"custom"}; const filterMap=(arr)=>arr?.includes("Numeric Only")?"numeric":arr?.includes("Text Only")?"text":"all"; const res = await missing.execute({filename:selectedId,action:actionMap[action]||"mean",filter:filterMap(filters),threshold:settings?.threshold??0.5,custom_value:settings?.custom_value??null}); updateProcessingStep("missing",{status:"done",output:res}); const newFile = res?.new_file || res?.data?.new_file; if (newFile) { setSelectedFile({ filename: newFile, name: newFile }); } const prev = await axiosClient.post("/api/datatypes/preview",{filename:res?.new_file||res?.data?.new_file||selectedId}); openPreview({before:[],after:Array.isArray(prev.data?.preview_data)?prev.data.preview_data:[]}); datasetsQuery.refetch?.(); } catch(e){ updateProcessingStep("missing",{status:"error",error:e?.message}); } },
       onPreview: async () => { if (!selectedId) return; const res = await axiosClient.post("/api/datatypes/preview",{filename:selectedId}); openPreview({before:[],after:Array.isArray(res.data?.preview_data)?res.data.preview_data:[]}); },
       onDownload: async () => downloadFromTemp(useAppStore.getState().processingSteps?.missing?.output?.new_file) },
     { key:"duplicates", title:"Remove Duplicates", description:"Identify and eliminate duplicate records to ensure data quality.", icon:Filter, color:"purple", delay:0.3, category:"cleaning",
       options:{ actions:["Find Duplicates","Remove All","Keep First","Keep Last","Mark Duplicates"], filters:["Exclude ID (Default)","Key Columns Only","All Columns"], settings:{subset:[],keep:"first",mark_only:false} },
-      onRun: async ({action,settings}) => { if (!selectedId) return; updateProcessingStep("duplicates",{status:"running"}); try { const actionMap={"Find Duplicates":"find_duplicates","Remove All":"remove_all","Keep First":"keep_first","Keep Last":"keep_last","Mark Duplicates":"mark_duplicates"}; const res = await duplicates.execute({filename:selectedId,action:actionMap[action]||"remove_all",subset:Array.isArray(settings?.subset)?settings.subset:[]}); updateProcessingStep("duplicates",{status:"done",output:res}); const prev = await axiosClient.post("/api/datatypes/preview",{filename:res?.new_file||res?.data?.new_file||selectedId}); openPreview({before:[],after:Array.isArray(prev.data?.preview_data)?prev.data.preview_data:[]}); datasetsQuery.refetch?.(); } catch(e){ updateProcessingStep("duplicates",{status:"error",error:e?.message}); } },
+      onRun: async ({action,settings}) => { if (!selectedId) return; updateProcessingStep("duplicates",{status:"running"}); try { const actionMap={"Find Duplicates":"find_duplicates","Remove All":"remove_all","Keep First":"keep_first","Keep Last":"keep_last","Mark Duplicates":"mark_duplicates"}; const res = await duplicates.execute({filename:selectedId,action:actionMap[action]||"remove_all",subset:Array.isArray(settings?.subset)?settings.subset:[]}); updateProcessingStep("duplicates",{status:"done",output:res}); const newFile = res?.new_file || res?.data?.new_file; if (newFile) { setSelectedFile({ filename: newFile, name: newFile }); } const prev = await axiosClient.post("/api/datatypes/preview",{filename:res?.new_file||res?.data?.new_file||selectedId}); openPreview({before:[],after:Array.isArray(prev.data?.preview_data)?prev.data.preview_data:[]}); datasetsQuery.refetch?.(); } catch(e){ updateProcessingStep("duplicates",{status:"error",error:e?.message}); } },
       onPreview: async ({settings}) => { if (!selectedId) return; const res = await axiosClient.post("/api/duplicates/preview",{filename:selectedId,subset:Array.isArray(settings?.subset)?settings.subset:null,preview_limit:100}); const raw=Array.isArray(res.data?.preview)?res.data.preview:[]; openPreview({before:[],after:raw.map((r)=>({row_index:r?.row_index,...(r?.data||{})}))}); },
       onDownload: async () => downloadFromTemp(useAppStore.getState().processingSteps?.duplicates?.output?.new_file) },
     { key:"types", title:"Correct Data Types", description:"Optimize column data types for better performance and accuracy", icon:Type, color:"blue", delay:0.4, category:"cleaning",
       options:{ actions:["Auto Detect","Convert to Numeric","Convert to Date","Convert to Category","Custom Type"], filters:["All Columns","Object Type","Numeric Type","DateTime Type","Mixed Types"], settings:{auto_convert:true,date_format:"infer",errors:"coerce"} },
-      onRun: async ({action,settings}) => { if (!selectedId) return; updateProcessingStep("types",{status:"running"}); try { const actionMap={"Auto Detect":"auto_detect","Convert to Numeric":"convert_to_numeric","Convert to Date":"convert_to_datetime","Convert to Category":"convert_to_category","Custom Type":"custom_mapping"}; const res = await axiosClient.post("/api/datatypes/convert",{filename:selectedId,action:actionMap[action]||"auto_detect",settings}); updateProcessingStep("types",{status:"done",output:res.data}); openPreview({before:[],after:res.data?.preview_data}); } catch(e){ updateProcessingStep("types",{status:"error",error:e?.message}); } },
+      onRun: async ({action,settings}) => { if (!selectedId) return; updateProcessingStep("types",{status:"running"}); try { const actionMap={"Auto Detect":"auto_detect","Convert to Numeric":"convert_to_numeric","Convert to Date":"convert_to_datetime","Convert to Category":"convert_to_category","Custom Type":"custom_mapping"}; const res = await axiosClient.post("/api/datatypes/convert",{filename:selectedId,action:actionMap[action]||"auto_detect",settings}); updateProcessingStep("types",{status:"done",output:res.data}); const newFile = res?.data?.new_file; if (newFile) { setSelectedFile({ filename: newFile, name: newFile }); } openPreview({before:[],after:res.data?.preview_data}); } catch(e){ updateProcessingStep("types",{status:"error",error:e?.message}); } },
       onPreview: async () => { if (!selectedId) return; const res = await axiosClient.post("/api/datatypes/preview",{filename:selectedId}); openPreview({before:[],after:res.data?.preview_data}); },
       onDownload: async () => downloadFromTemp(useAppStore.getState().processingSteps?.types?.output?.new_file) },
     { key:"normalize", title:"Normalize / Scale Data", description:"Apply scaling techniques to prepare data for machine learning.", icon:BarChart2, color:"indigo", delay:0.5, category:"preparation",
       options:{ actions:["Standard Scale","Min-Max Scale","Robust Scale","Unit Vector","Quantile Transform"], filters:["Numeric Columns","High Range","Skewed Distribution","Selected Features"], settings:{method:"standard",feature_range:[0,1],with_mean:true} },
-      onRun: async ({action,filters,settings}) => { if (!selectedId) return; updateProcessingStep("normalize",{status:"running"}); try { const methodMap={"Standard Scale":"standard","Min-Max Scale":"minmax","Robust Scale":"robust","Unit Vector":"unit_vector","Quantile Transform":"quantile"}; const res = await normalize.execute({filename:selectedId,settings:{method:methodMap[action]||settings?.method||"standard",feature_range:settings?.feature_range??[0,1],with_mean:settings?.with_mean??true,preview_limit:100},filters:filters?.length?filters:["Numeric Columns"]}); updateProcessingStep("normalize",{status:"done",output:res}); openPreview({before:[],after:res?.preview_data}); } catch(e){ updateProcessingStep("normalize",{status:"error",error:e?.message}); } },
+      onRun: async ({action,filters,settings}) => { if (!selectedId) return; updateProcessingStep("normalize",{status:"running"}); try { const methodMap={"Standard Scale":"standard","Min-Max Scale":"minmax","Robust Scale":"robust","Unit Vector":"unit_vector","Quantile Transform":"quantile"}; const res = await normalize.execute({filename:selectedId,settings:{method:methodMap[action]||settings?.method||"standard",feature_range:settings?.feature_range??[0,1],with_mean:settings?.with_mean??true,preview_limit:100},filters:filters?.length?filters:["Numeric Columns"]}); updateProcessingStep("normalize",{status:"done",output:res}); const newFile = res?.new_file || res?.data?.new_file; if (newFile) { setSelectedFile({ filename: newFile, name: newFile }); } openPreview({before:[],after:res?.preview_data}); } catch(e){ updateProcessingStep("normalize",{status:"error",error:e?.message}); } },
       onPreview: async ({action,filters,settings}) => { if (!selectedId) return; const methodMap={"Standard Scale":"standard","Min-Max Scale":"minmax","Robust Scale":"robust","Unit Vector":"unit_vector","Quantile Transform":"quantile"}; const res = await axiosClient.post("/api/normalize/preview",{filename:selectedId,settings:{method:methodMap[action]||settings?.method||"standard",feature_range:settings?.feature_range??[0,1],with_mean:settings?.with_mean??true,preview_limit:100},filters:filters?.length?filters:["Numeric Columns"]}); openPreview({before:[],after:res.data?.preview_data}); },
       onDownload: async () => downloadFromTemp(useAppStore.getState().processingSteps?.normalize?.output?.new_file) },
     { key:"outliers", title:"Handle Outliers", description:"Detect and manage statistical outliers that could affect your analysis.", icon:TrendingUp, color:"purple", delay:0.6, category:"preparation",
       options:{ actions:["IQR Method","Z-Score","Modified Z-Score","Isolation Forest","Remove Outliers"], filters:["Numeric Columns","High Variance","Distribution Based","Custom Threshold"], settings:{method:"iqr",threshold:3,action:"flag"} },
-      onRun: async ({action,filters,settings}) => { if (!selectedId) return; updateProcessingStep("outliers",{status:"running"}); try { const methodMap={"IQR Method":"iqr","Z-Score":"zscore","Modified Z-Score":"modified_zscore","Isolation Forest":"isolation_forest"}; const act=action==="Remove Outliers"?"remove":settings?.action||"flag"; const res = await outliers.execute({filename:selectedId,method:methodMap[action]||settings?.method||"iqr",settings:{threshold:settings?.threshold??3,action:act,preview_limit:100},filters:filters?.length?filters:["Numeric Columns"]}); updateProcessingStep("outliers",{status:"done",output:res}); openPreview({before:[],after:res?.preview_data}); datasetsQuery.refetch?.(); } catch(e){ updateProcessingStep("outliers",{status:"error",error:e?.message}); } },
+      onRun: async ({action,filters,settings}) => { if (!selectedId) return; updateProcessingStep("outliers",{status:"running"}); try { const methodMap={"IQR Method":"iqr","Z-Score":"zscore","Modified Z-Score":"modified_zscore","Isolation Forest":"isolation_forest"}; const act=action==="Remove Outliers"?"remove":settings?.action||"flag"; const res = await outliers.execute({filename:selectedId,method:methodMap[action]||settings?.method||"iqr",settings:{threshold:settings?.threshold??3,action:act,preview_limit:100},filters:filters?.length?filters:["Numeric Columns"]}); updateProcessingStep("outliers",{status:"done",output:res}); const newFile = res?.new_file || res?.data?.new_file; if (newFile) { setSelectedFile({ filename: newFile, name: newFile }); } openPreview({before:[],after:res?.preview_data}); datasetsQuery.refetch?.(); } catch(e){ updateProcessingStep("outliers",{status:"error",error:e?.message}); } },
       onPreview: async ({action,filters,settings}) => { if (!selectedId) return; const methodMap={"IQR Method":"iqr","Z-Score":"zscore","Modified Z-Score":"modified_zscore","Isolation Forest":"isolation_forest"}; const act=action==="Remove Outliers"?"remove":settings?.action||"flag"; const res = await axiosClient.post("/api/outliers/preview",{filename:selectedId,method:methodMap[action]||settings?.method||"iqr",settings:{threshold:settings?.threshold??3,action:act,preview_limit:100},filters:filters?.length?filters:["Numeric Columns"]}); openPreview({before:[],after:res.data?.preview_data}); },
       onDownload: async () => downloadFromTemp(useAppStore.getState().processingSteps?.outliers?.output?.new_file) },
     { key:"features", title:"Feature Engineering", description:"Create new features and transform existing ones for better insights.", icon:Layers, color:"blue", delay:1, category:"preparation",
       options:{ actions:["Polynomial Features","Interaction Terms","Binning","Date Features","Text Features"], filters:["Numeric Features","Date Columns","Text Columns","Selected Columns"], settings:{degree:2,include_bias:false,interaction_only:false} },
-      onRun: async ({action,filters,settings}) => { if (!selectedId) return; updateProcessingStep("features",{status:"running"}); try { const actionMap={"Polynomial Features":"polynomial","Interaction Terms":"interaction","Binning":"binning","Date Features":"date","Text Features":"text"}; const feSettings={action:actionMap[action]||settings?.action||"polynomial",degree:settings?.degree??2,include_bias:!!settings?.include_bias,interaction_only:!!settings?.interaction_only,binning_strategy:settings?.binning_strategy||"equal_width",bins:settings?.bins??5,date_parts:settings?.date_parts||["year","month","day","weekday"],text_options:settings?.text_options||{use_tfidf:false,max_features:100},selected_columns:settings?.selected_columns||null,preview_limit:100}; const res = await features.execute({filename:selectedId,filters:filters?.length?filters:["Numeric Features"],settings:feSettings}); updateProcessingStep("features",{status:"done",output:res}); openPreview({before:[],after:res?.preview_data}); } catch(e){ updateProcessingStep("features",{status:"error",error:e?.message}); } },
+      onRun: async ({action,filters,settings}) => { if (!selectedId) return; updateProcessingStep("features",{status:"running"}); try { const actionMap={"Polynomial Features":"polynomial","Interaction Terms":"interaction","Binning":"binning","Date Features":"date","Text Features":"text"}; const feSettings={action:actionMap[action]||settings?.action||"polynomial",degree:settings?.degree??2,include_bias:!!settings?.include_bias,interaction_only:!!settings?.interaction_only,binning_strategy:settings?.binning_strategy||"equal_width",bins:settings?.bins??5,date_parts:settings?.date_parts||["year","month","day","weekday"],text_options:settings?.text_options||{use_tfidf:false,max_features:100},selected_columns:settings?.selected_columns||null,preview_limit:100}; const res = await features.execute({filename:selectedId,filters:filters?.length?filters:["Numeric Features"],settings:feSettings}); updateProcessingStep("features",{status:"done",output:res}); const newFile = res?.new_file || res?.data?.new_file; if (newFile) { setSelectedFile({ filename: newFile, name: newFile }); } openPreview({before:[],after:res?.preview_data}); } catch(e){ updateProcessingStep("features",{status:"error",error:e?.message}); } },
       onPreview: async ({action,filters,settings}) => { if (!selectedId) return; const actionMap={"Polynomial Features":"polynomial","Interaction Terms":"interaction","Binning":"binning","Date Features":"date","Text Features":"text"}; const feSettings={action:actionMap[action]||settings?.action||"polynomial",degree:settings?.degree??2,include_bias:!!settings?.include_bias,interaction_only:!!settings?.interaction_only,binning_strategy:settings?.binning_strategy||"equal_width",bins:settings?.bins??5,date_parts:settings?.date_parts||["year","month","day","weekday"],text_options:settings?.text_options||{use_tfidf:false,max_features:100},selected_columns:settings?.selected_columns||null,preview_limit:100}; const res = await axiosClient.post("/api/features/preview",{filename:selectedId,filters:filters?.length?filters:["Numeric Features"],settings:feSettings}); openPreview({before:[],after:res.data?.preview_data}); },
       onDownload: async () => downloadFromTemp(useAppStore.getState().processingSteps?.features?.output?.new_file) },
     { key:"dax", title:"DAX Computations", description:"Apply DAX-like computations.", icon:Zap, color:"indigo", delay:0.6, category:"analysis",
@@ -1003,20 +1000,15 @@ export default function Home() {
       onDownload: async () => downloadFromTemp(useAppStore.getState().processingSteps?.dax?.output?.new_file) },
     { key:"dax_measures", title:"DAX Measures Generator", description:"Auto-generate 20-100 meaningful DAX measures with PDF export", icon:CheckSquare2, color:"purple", delay:1.1, category:"analysis",
       options:{ actions:["Generate Measures"], filters:["All Columns"], settings:{min_measures:20,max_measures:60,preview_limit:20} },
-      onRun: async ({settings}) => { if (!selectedId) return; updateProcessingStep("dax_measures",{status:"running"}); try { const res = await axiosClient.post("/api/dax/measures",{filename:selectedId,settings:{min_measures:settings?.min_measures??20,max_measures:settings?.max_measures??60,preview_limit:100}}); updateProcessingStep("dax_measures",{status:"done",output:res.data}); openPreview({before:[],after:res.data?.measures}); } catch(e){ updateProcessingStep("dax_measures",{status:"error",error:e?.message}); } },
+      onRun: async ({settings}) => { if (!selectedId) return; updateProcessingStep("dax_measures",{status:"running"}); try { const res = await axiosClient.post("/api/dax/measures",{filename:selectedId,settings:{min_measures:settings?.min_measures??20,max_measures:settings?.max_measures??60,preview_limit:100}}); updateProcessingStep("dax_measures",{status:"done",output:res.data}); const newFile = res?.data?.new_file; if (newFile) { setSelectedFile({ filename: newFile, name: newFile }); } openPreview({before:[],after:res.data?.measures}); } catch(e){ updateProcessingStep("dax_measures",{status:"error",error:e?.message}); } },
       onPreview: async ({settings}) => { if (!selectedId) return; const res = await axiosClient.post("/api/dax/measures",{filename:selectedId,settings:{min_measures:settings?.min_measures??10,max_measures:settings?.max_measures??20,preview_limit:100}}); openPreview({before:[],after:res.data?.measures}); },
       onDownload: async () => downloadFromTemp(useAppStore.getState().processingSteps?.dax_measures?.output?.new_file) },
   ], [selectedId, missing.execute, duplicates.execute, normalize.execute, outliers.execute, features.execute, dax.execute, updateProcessingStep]);
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <Navbar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-      <main className="pt-24 pb-12">
-        <div className="w-full px-12 py-10">
-          <div className="w-full space-y-16">
-
-            <motion.section initial={fadeInUp.initial} animate={fadeInUp.animate} transition={fadeInUp.transition}
-              className="w-full bg-white border border-gray-200 rounded-xl shadow-sm p-8 lg:p-10">
+    <div className="w-full space-y-16">
+      <motion.section initial={fadeInUp.initial} animate={fadeInUp.animate} transition={fadeInUp.transition}
+        className="w-full bg-white border border-gray-200 rounded-xl shadow-sm p-8 lg:p-10">
               <div className="flex flex-col space-y-1 mb-4">
                 <h2 className="text-xl font-semibold text-slate-800">Upload Section</h2>
                 <p className="text-sm text-gray-600">Upload datasets to begin analysis and processing.</p>
@@ -1034,8 +1026,8 @@ export default function Home() {
               </div>
               <div className="space-y-6">
                 <div className="flex items-center gap-2">
-                  <button onClick={() => setFileTab("uploaded")} className={`px-3 py-1.5 rounded-md text-sm ${fileTab==="uploaded"?"bg-blue-600 text-white":"bg-white text-slate-700 border"}`}>Uploaded Files</button>
-                  <button onClick={() => setFileTab("cleaned")} className={`px-3 py-1.5 rounded-md text-sm ${fileTab==="cleaned"?"bg-blue-600 text-white":"bg-white text-slate-700 border"}`}>Cleaned Files</button>
+                  <button onClick={() => setFileTab("uploaded")} className={`px-3 py-1.5 rounded-md text-sm ${fileTab==="uploaded"?"text-white":"bg-white text-slate-700 border"}`} style={fileTab==="uploaded"?{background: '#4361ee'}:{}}>Uploaded Files</button>
+                  <button onClick={() => setFileTab("cleaned")} className={`px-3 py-1.5 rounded-md text-sm ${fileTab==="cleaned"?"text-white":"bg-white text-slate-700 border"}`} style={fileTab==="cleaned"?{background: '#4361ee'}:{}}>Cleaned Files</button>
                 </div>
                 {fileTab==="uploaded" && (
                   <FileList files={serverFilesList} selectedId={selectedId} onSelect={(f) => setSelectedFile(f)}
@@ -1043,12 +1035,19 @@ export default function Home() {
                     onViewCleaned={(file) => { setSelectedFile(file); const name=file?.filename||file?.name; if(name) setSelectedOriginal(name); setFileTab("cleaned"); }} />
                 )}
                 {fileTab==="cleaned" && (
-                  <CleanedFiles selectedOriginal={selectedOriginal} setSelectedOriginal={setSelectedOriginal}
-                    originalsDropdown={originalsDropdown} isLoading={datasetsQuery.isLoading}
-                    cleanedFiles={displayCleaned} selectedId={selectedId}
-                    onSelect={(f) => { setSelectedFile({filename:f.filename,name:f.filename}); setSelectedOriginal(f.original||selectedOriginal); }}
-                    onDownload={(fname) => downloadFromTemp(fname)}
-                    showFilterNotice={Boolean(selectedOriginal)&&Array.isArray(displayCleaned)&&displayCleaned.length===0} />
+                  <DatasetVersionList
+                    onSelectFile={(file) => {
+                      setSelectedFile({
+                        filename: file.filename,
+                        name: file.filename,
+                        dataset_name: file.dataset_name,
+                        version: file.version,
+                        operation: file.operation,
+                      });
+                      console.log('Selected version:', file);
+                    }}
+                    onDownloadFile={(filename) => downloadFromTemp(filename)}
+                  />
                 )}
               </div>
             </section>
@@ -1076,7 +1075,7 @@ export default function Home() {
                   {selectedId && <div className="text-sm text-gray-500 mt-1">Selected: <span className="font-medium text-blue-600">{selectedId}</span></div>}
                 </div>
                 <button onClick={generateAutoDashboard} disabled={previewLoading||!selectedId}
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white ${previewLoading||!selectedId?"bg-blue-400 cursor-not-allowed":"bg-blue-600 hover:bg-blue-700"} transition-colors`}>
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white transition-colors ${previewLoading||!selectedId?"cursor-not-allowed opacity-50":""}`} style={previewLoading||!selectedId?{background: '#9ca3af'}:{background: '#4361ee'}} onMouseEnter={(e) => !previewLoading&&!selectedId && (e.target.style.background = '#3e56d4')} onMouseLeave={(e) => !previewLoading&&!selectedId && (e.target.style.background = '#4361ee')}>
                   {previewLoading ? <RefreshCw size={16} className="animate-spin" /> : <BarChart2 size={16} />}
                   {previewLoading ? "Generating..." : "Generate Dashboard"}
                 </button>
@@ -1174,7 +1173,7 @@ export default function Home() {
                         <Brain size={18} className="text-indigo-500" />
                         <h3 className="text-base font-semibold text-gray-800">ML AutoPredictor</h3>
                         <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Random Forest</span>
-                        <span className="text-xs text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">Train → Predict → Explain</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full" style={{color: '#4361ee', backgroundColor: '#eef0f6', borderColor: '#e8eaf0'}}>Train → Predict → Explain</span>
                       </div>
                       <MLPanel filename={latestDashboard.filename} />
                     </div>
@@ -1182,10 +1181,6 @@ export default function Home() {
                 </div>
               </section>
             )}
-
-          </div>
-        </div>
-      </main>
 
       <AnimatePresence>
         {showPreview && (

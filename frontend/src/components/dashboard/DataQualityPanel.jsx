@@ -120,15 +120,15 @@ const METRICS = [
 
 function SkeletonCard() {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 animate-pulse">
+    <div className="bg-[var(--card)] rounded-xl border border-[var(--border)] shadow-sm p-5 animate-pulse">
       <div className="flex items-start justify-between mb-3">
-        <div className="w-14 h-14 rounded-lg bg-slate-200" />
-        <div className="w-14 h-5 rounded-full bg-slate-200" />
+        <div className="w-14 h-14 rounded-lg bg-[color-mix(in_srgb,var(--border),#ffffff_35%)]" />
+        <div className="w-14 h-5 rounded-full bg-[color-mix(in_srgb,var(--border),#ffffff_35%)]" />
       </div>
-      <div className="w-20 h-7 rounded bg-slate-200 mb-2" />
-      <div className="w-28 h-3 rounded bg-slate-150 mb-1" />
-      <div className="w-24 h-2.5 rounded bg-slate-100 mb-3" />
-      <div className="h-1.5 rounded-full bg-slate-100" />
+      <div className="w-20 h-7 rounded bg-[color-mix(in_srgb,var(--border),#ffffff_35%)] mb-2" />
+      <div className="w-28 h-3 rounded bg-[color-mix(in_srgb,var(--border),#ffffff_45%)] mb-1" />
+      <div className="w-24 h-2.5 rounded bg-[color-mix(in_srgb,var(--border),#ffffff_55%)] mb-3" />
+      <div className="h-1.5 rounded-full bg-[color-mix(in_srgb,var(--border),#ffffff_55%)]" />
     </div>
   );
 }
@@ -142,25 +142,25 @@ function MetricCard({ metric, value, animDelay }) {
   return (
     <motion.div
       variants={item}
-      className="h-full p-6 rounded-lg border bg-white shadow-sm text-center hover:shadow-md transition-shadow min-h-[140px]"
+      className="h-full p-6 rounded-lg border bg-[var(--card)] border-[var(--border)] shadow-sm text-center hover:shadow-md transition-shadow min-h-[140px]"
     >
       <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
         <div className={`w-14 h-14 rounded-lg flex items-center justify-center flex-shrink-0 ${c.iconBg}`}>
           <Icon className={`w-7 h-7 ${c.icon}`} />
         </div>
-        <span className={`ml-auto max-w-full text-[11px] font-semibold leading-none px-2.5 py-1 rounded-full whitespace-nowrap ${c.badge}`}>
+        <span className={`ml-auto max-w-full text-xs font-semibold leading-none px-2.5 py-1 rounded-full whitespace-nowrap ${c.badge}`}>
           {metric.statusKey ? statusLabel : "Info"}
         </span>
       </div>
       <div className={`text-2xl font-bold leading-tight ${c.value}`}>
         {metric.format(value)}
       </div>
-      <div className="text-sm font-semibold text-slate-700 uppercase tracking-wide mt-1">
+      <div className="text-[13px] font-semibold text-[var(--text)] uppercase tracking-wide mt-1">
         {metric.label}
       </div>
-      <div className="text-sm text-slate-500 mt-0.5">{metric.description}</div>
+      <div className="text-xs text-[var(--text2)] mt-0.5">{metric.description}</div>
       {metric.showBar && (
-        <div className="mt-3 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+        <div className="mt-3 h-1.5 rounded-full bg-[color-mix(in_srgb,var(--border),#ffffff_55%)] overflow-hidden">
           <motion.div
             className={`h-full rounded-full ${c.bar}`}
             initial={{ width: 0 }}
@@ -189,12 +189,12 @@ function OverallBadge({ data }) {
   const c     = COLORS[color];
 
   return (
-    <div className="mt-4 pt-4 border-t border-blue-100 flex flex-wrap items-center gap-3">
+    <div className="mt-4 pt-4 border-t border-[var(--border)] flex flex-wrap items-center gap-3">
       <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${c.strip}`}>
         <span className={`w-2 h-2 rounded-full flex-shrink-0 ${c.dot}`} />
         {label}
       </span>
-      <span className="text-xs text-slate-500">
+      <span className="text-xs text-[var(--text2)]">
         {data.rows.toLocaleString()} rows &nbsp;·&nbsp;
         {data.columns} columns &nbsp;·&nbsp; Completeness&nbsp;
         {data.completeness_score.toFixed(1)}&nbsp;%
@@ -249,11 +249,11 @@ function RiskGauge({ score }) {
             style={{ transition: "stroke-dashoffset 0.8s ease" }} />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-[11px] font-bold" style={{ color }}>{score}</span>
+          <span className="text-xs font-bold" style={{ color }}>{score}</span>
         </div>
       </div>
       <div>
-        <p className="text-[10px] text-gray-400 uppercase tracking-wide font-medium">Risk Score</p>
+        <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">Risk Score</p>
         <div className="flex items-center gap-1 mt-0.5">
           <Icon size={13} style={{ color }} />
           <p className="text-xs font-semibold" style={{ color }}>{label}</p>
@@ -276,7 +276,7 @@ function RiskIssueCard({ issue }) {
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm font-semibold text-gray-800">{issue.issue}</span>
-              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${cfg.badge}`}>
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${cfg.badge}`}>
                 {issue.severity.toUpperCase()}
               </span>
             </div>
@@ -366,19 +366,19 @@ export default function DataQualityPanel({ filename }) {
       initial={fadeInUp.initial}
       animate={fadeInUp.animate}
       transition={fadeInUp.transition}
-      className="w-full bg-white border border-gray-200 rounded-xl shadow-sm p-8 lg:p-10"
+      className="w-full bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-sm p-8 lg:p-10"
     >
       {/* ── Panel header (original layout preserved) ─────────────────────── */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="w-14 h-14 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
+          <div className="w-14 h-14 bg-[var(--icon-blue)] rounded-xl flex items-center justify-center shadow-md">
             <BarChart2 className="w-7 h-7 text-white" />
           </div>
           <div className="flex flex-col space-y-1">
-            <h2 className="text-xl font-semibold text-slate-800">
+            <h2 className="text-xl font-semibold text-[var(--text)]">
               Data Quality Monitoring
             </h2>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-[var(--text2)]">
               {filename ? `Analyzing: ${filename}` : "Select a file to view quality metrics"}
             </p>
           </div>
@@ -393,7 +393,7 @@ export default function DataQualityPanel({ filename }) {
             <button
               onClick={() => analyze(filename).catch(() => {})}
               disabled={isLoading}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[var(--accent)] bg-[var(--accent-light)] hover:bg-[color-mix(in_srgb,var(--accent-light),#ffffff_40%)] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
               {isLoading ? "Analyzing…" : "Refresh"}
@@ -404,10 +404,10 @@ export default function DataQualityPanel({ filename }) {
 
       {/* ── Empty state (UNCHANGED) ──────────────────────────────────────── */}
       {!filename && (
-        <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+        <div className="flex flex-col items-center justify-center py-12 text-[var(--text3)]">
           <BarChart2 className="w-12 h-12 mb-3 opacity-25" />
-          <p className="text-sm font-medium">No dataset selected</p>
-          <p className="text-xs mt-1">Upload or select a file above to begin quality analysis</p>
+          <p className="text-sm font-medium text-[var(--text)]">No dataset selected</p>
+          <p className="text-xs mt-1 text-[var(--text2)]">Upload or select a file above to begin quality analysis</p>
         </div>
       )}
 
@@ -456,12 +456,12 @@ export default function DataQualityPanel({ filename }) {
 
           {/* ✅ NEW: Risk issues section — only shown when issues exist */}
           {riskIssues.length > 0 && (
-            <div className="mt-8 pt-6 border-t border-gray-100">
+            <div className="mt-8 pt-6 border-t border-[var(--border)]">
               {/* Risk section header */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                 <div>
-                  <h3 className="text-base font-semibold text-slate-800">Risk Analysis</h3>
-                  <p className="text-xs text-gray-500 mt-0.5">{riskSummary}</p>
+                  <h3 className="text-base font-semibold text-[var(--text)]">Risk Analysis</h3>
+                  <p className="text-xs text-[var(--text2)] mt-0.5">{riskSummary}</p>
                 </div>
                 <SeverityPills issues={riskIssues} />
               </div>
@@ -500,7 +500,7 @@ export default function DataQualityPanel({ filename }) {
                   ))}
               </div>
 
-              <p className="text-[11px] text-gray-400 mt-4 text-right">
+              <p className="text-xs text-gray-400 mt-4 text-right">
                 Click any card to expand fix suggestions · Re-analyze after cleaning
               </p>
             </div>

@@ -229,7 +229,7 @@ def _perform_feature_engineering(df: pd.DataFrame, request: FeatureRequest):
     return df, created
 
 
-@router.post("/api/features/preview")
+@router.post("/features/preview")
 async def features_preview(request: FeatureRequest, current_user: UserInDB = Depends(get_current_active_user)):
     try:
         df = _load_dataframe_for_processing_user(request.filename, current_user)
@@ -249,7 +249,7 @@ async def features_preview(request: FeatureRequest, current_user: UserInDB = Dep
         raise HTTPException(status_code=500, detail=f"Error generating feature preview: {str(e)}")
 
 
-@router.post("/api/features/apply")
+@router.post("/features/apply")
 async def features_apply(request: FeatureRequest, current_user: UserInDB = Depends(get_current_active_user)):
     try:
         df = _load_dataframe_for_processing_user(request.filename, current_user)

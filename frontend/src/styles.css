@@ -4,6 +4,19 @@
 
 :root {
   color-scheme: light;
+  /* Color Scheme */
+  --accent: #4361ee;
+  --accent-hover: #3e56d4;
+  --nav: #ffffff;
+  --nav-text: #111827;
+  --nav-muted: #6b7280;
+  --nav-active: #eef0f6;
+  --bg: #eef0f6;
+  --card: #ffffff;
+  --border: #e8eaf0;
+  --text: #111827;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
 }
 
 html, body, #root {
@@ -11,5 +24,78 @@ html, body, #root {
 }
 
 body {
-  @apply bg-white text-gray-900;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+/* Headings use different weights, not sizes */
+h1 {
+  font-weight: 900;
+}
+
+h2 {
+  font-weight: 800;
+}
+
+h3 {
+  font-weight: 700;
+}
+
+h4, h5, h6 {
+  font-weight: 600;
+}
+
+/* Paragraph styling */
+p {
+  margin: 0;
+}
+
+/* Small text for secondary info */
+small {
+  font-size: 12px;
+  color: #7A8BA8;
+}
+
+/* Modal Styles */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  max-width: 95vw;
+  max-height: 95vh;
+  width: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  padding: 24px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Force Light Theme - Prevent Dark Mode Override
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: light;
+  }
 }

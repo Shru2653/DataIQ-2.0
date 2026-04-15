@@ -46,3 +46,13 @@ backend/test_handle.json
 dist/
 build/
 *.egg-info/
+
+# Uploaded/processed datasets (runtime artifacts)
+backend/static/uploads/
+backend/uploads/
+backend/**/*.csv
+backend/**/*.xlsx
+backend/**/*.xls
+*.csv
+*.xlsx
+*.xls

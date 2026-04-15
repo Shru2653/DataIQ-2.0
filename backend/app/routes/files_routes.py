@@ -13,6 +13,9 @@ from app.utils.auth_utils import get_current_active_user
 from app.models.user_model import UserInDB
 from app.utils.paths import ensure_dir, user_files_dir, user_cleaned_dir
 import shutil as _shutil
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -63,10 +66,7 @@ async def upload_files(
         try:
             await register_upload(current_user.id, final_name, size=dest_path.stat().st_size, content_type=f.content_type)
         except Exception as e:
-            try:
-                print(f"register_upload failed, falling back to Motor: {e}")
-            except Exception:
-                pass
+            logger.exception("register_upload failed; falling back to direct Motor upsert")
             # Fallback: direct upsert via Motor to ensure datasets list is populated
             db = get_db()
             await db["datasets"].update_one(
@@ -144,7 +144,7 @@ def list_cleaned_files(original: str | None = None, current_user: UserInDB = Dep
     return {"files": items}
 
 
-@router.get("/api/raw-datasets")
+@router.get("/raw-datasets")
 def list_raw_datasets(current_user: UserInDB = Depends(get_current_active_user)):
     """List original uploaded (raw) datasets from the user's files directory."""
     files = []
@@ -162,7 +162,7 @@ def list_raw_datasets(current_user: UserInDB = Depends(get_current_active_user))
     return {"files": files}
 
 
-@router.get("/api/cleaned-datasets")
+@router.get("/cleaned-datasets")
 def list_cleaned_datasets(current_user: UserInDB = Depends(get_current_active_user)):
     """List cleaned / processed datasets from the user's cleaned directory."""
     files = []
@@ -184,11 +184,9 @@ def list_cleaned_datasets(current_user: UserInDB = Depends(get_current_active_us
 async def list_datasets(current_user: UserInDB = Depends(get_current_active_user)):
     from app.models.dataset_model import Dataset
     try:
-        print(current_user.id)
         col = Dataset.get_motor_collection()
         raw = await col.find({"user_id": current_user.id, "filename": {"$exists": True}}).to_list(length=None)
         items = []
-        print(raw)
         for doc in raw:
             fname = doc.get("filename")
             if not fname:
@@ -213,10 +211,10 @@ async def list_datasets(current_user: UserInDB = Depends(get_current_active_user
                 "uploaded_at": doc.get("uploaded_at"),
                 "cleaned_versions": norm_cleaned,
             })
-        print(items)
         return {"datasets": items}
     except Exception as e:
         # As a last resort, return empty instead of 500 to keep UI functional
+        logger.exception("list_datasets failed; returning empty list to keep UI functional")
         return {"datasets": []}
 
 
@@ -257,7 +255,7 @@ async def preview_file(file: UploadFile = File(...)):
     raise HTTPException(status_code=400, detail="Unsupported file type")
 
 
-@router.get("/api/files/{kind}/{filename}")
+@router.get("/files/{kind}/{filename}")
 def secure_download(kind: str, filename: str, current_user: UserInDB = Depends(get_current_active_user)):
     if kind not in {"files", "cleaned"}:
         raise HTTPException(status_code=400, detail="Invalid kind")

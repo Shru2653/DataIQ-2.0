@@ -174,7 +174,7 @@ def _perform_standardize(df: pd.DataFrame, actions: StandardizeActions, filters:
     return df, cols, logs, encoding_applied
 
 
-@router.post("/api/standardize/preview")
+@router.post("/standardize/preview")
 async def standardize_preview(request: StandardizeRequest, current_user: UserInDB = Depends(get_current_active_user)):
     try:
         df = _load_dataframe_for_processing_user(request.filename, current_user)
@@ -196,7 +196,7 @@ async def standardize_preview(request: StandardizeRequest, current_user: UserInD
         raise HTTPException(status_code=500, detail=f"Error generating standardize preview: {str(e)}")
 
 
-@router.post("/api/standardize/apply")
+@router.post("/standardize/apply")
 async def standardize_apply(request: StandardizeRequest, current_user: UserInDB = Depends(get_current_active_user)):
     try:
         df = _load_dataframe_for_processing_user(request.filename, current_user)

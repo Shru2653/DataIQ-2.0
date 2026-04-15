@@ -50,24 +50,24 @@ function FileCard({
   const filename = file.filename || file.name || "";
   const ext      = filename.split(".").pop()?.toUpperCase() ?? "";
   const extColor = ext === "CSV"
-    ? "bg-emerald-100 text-emerald-700"
+    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
     : ext === "XLSX" || ext === "XLS"
-    ? "bg-blue-100 text-blue-700"
-    : "bg-gray-100 text-gray-600";
+    ? "bg-[var(--accent-light)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent),#ffffff_60%)]"
+    : "bg-[color-mix(in_srgb,var(--border),#ffffff_55%)] text-[var(--text2)] border border-[var(--border)]";
 
   return (
     <div
       onClick={() => onSelect(file)}
       className={`group relative rounded-xl border transition-all duration-150 cursor-pointer
         ${isSelected
-          ? "border-blue-400 bg-blue-50 shadow-sm ring-1 ring-blue-300"
-          : "border-gray-200 bg-white hover:border-blue-300 hover:shadow-sm"
+          ? "border-[var(--border-active)] bg-[var(--accent-light)] shadow-sm ring-1 ring-[color-mix(in_srgb,var(--accent),#ffffff_55%)]"
+          : "border-[var(--border)] bg-[var(--card)] hover:border-[var(--border-active)] hover:shadow-sm"
         }`}
     >
       {/* Selected indicator */}
       {isSelected && (
         <div className="absolute top-3 right-3">
-          <CheckCircle2 size={16} className="text-blue-500" />
+          <CheckCircle2 size={16} className="text-[var(--accent)]" />
         </div>
       )}
 
@@ -79,17 +79,17 @@ function FileCard({
           </div>
           <div className="min-w-0 flex-1">
             <p
-              className="text-sm font-medium text-gray-800 truncate leading-snug"
+              className="text-base font-semibold text-[var(--text)] truncate leading-snug"
               title={filename}
             >
               {filename}
             </p>
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
               {file.size && (
-                <span className="text-xs text-gray-400">{fmtSize(file.size)}</span>
+                <span className="text-xs text-[var(--text3)]">{fmtSize(file.size)}</span>
               )}
               {file.uploaded_at && (
-                <span className="flex items-center gap-0.5 text-xs text-gray-400">
+                <span className="flex items-center gap-0.5 text-xs text-[var(--text3)]">
                   <Clock size={10} />
                   {fmtDate(file.uploaded_at)}
                 </span>
@@ -107,8 +107,9 @@ function FileCard({
           <button
             onClick={() => onPreview(file)}
             className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg
-                       bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200
-                       hover:border-blue-400 transition"
+                       bg-[var(--accent-light)] hover:bg-[color-mix(in_srgb,var(--accent-light),#ffffff_40%)]
+                       text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent),#ffffff_60%)]
+                       hover:border-[var(--border-active)] transition"
             title="Preview file contents"
           >
             <Eye size={12} />
@@ -120,8 +121,11 @@ function FileCard({
             <button
               onClick={() => onViewCleaned(file)}
               className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg
-                         bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200
-                         hover:border-purple-400 transition"
+                         bg-[color-mix(in_srgb,var(--icon-violet),#ffffff_92%)]
+                         hover:bg-[color-mix(in_srgb,var(--icon-violet),#ffffff_88%)]
+                         text-[var(--icon-violet)]
+                         border border-[color-mix(in_srgb,var(--icon-violet),#ffffff_70%)]
+                         transition"
               title={`${cleanedCount} cleaned version(s)`}
             >
               <Layers size={12} />
@@ -135,7 +139,7 @@ function FileCard({
               onClick={() => onDelete(file)}
               className="flex items-center gap-1.5 text-xs font-medium px-2 py-1.5 rounded-lg
                          bg-red-50 hover:bg-red-100 text-red-600 border border-red-200
-                         hover:border-red-400 transition ml-auto"
+                         hover:border-red-300 transition ml-auto"
               title="Delete file"
             >
               <Trash2 size={12} />
@@ -160,10 +164,10 @@ export default function FileList({
 
   if (!files.length) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-gray-400 gap-2">
+      <div className="flex flex-col items-center justify-center py-12 text-[var(--text3)] gap-2">
         <FileText size={32} className="opacity-40" />
-        <p className="text-sm">No files uploaded yet</p>
-        <p className="text-xs">Upload a CSV or Excel file to get started</p>
+        <p className="text-base font-medium text-[var(--text)]">No files uploaded yet</p>
+        <p className="text-sm text-[var(--text2)]">Upload a CSV or Excel file to get started</p>
       </div>
     );
   }

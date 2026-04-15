@@ -17,8 +17,9 @@
 - Backend
   ```powershell
   cd backend
-  pip install -r requirements.txt
-  python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+  # Recommended: use the repo venv created by run_all.ps1
+  ..\.venv\Scripts\python -m pip install -r requirements.txt
+  ..\.venv\Scripts\python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
   ```
 
 - Frontend
@@ -29,7 +30,8 @@
   ```
 
 ## Notes
-- No virtual environment is created. Uses system `python` and `pip`.
+- `run_all.ps1` uses a local virtual environment at `.venv` (recommended).
+- If you run commands manually, you can either use `.venv` or your system Python, but **using `.venv` avoids polluting global packages**.
 - Upload supports: CSV, XLSX/XLS, PDF, Images (png/jpg/jpeg/gif/bmp/webp).
 - Frontend previews:
   - CSV/XLSX/XLS: first rows in a table

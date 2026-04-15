@@ -245,7 +245,7 @@ def _risk_summary(issues: List[RiskIssue]) -> str:
 
 # ─── Endpoint (same URL /api/data-quality — response extended) ───────────────
 
-@router.post("/api/data-quality", response_model=DataQualityResponse)
+@router.post("/data-quality", response_model=DataQualityResponse)
 async def get_data_quality(
     request: DataQualityRequest,
     current_user: UserInDB = Depends(get_current_active_user),

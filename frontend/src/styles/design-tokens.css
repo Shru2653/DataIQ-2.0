@@ -1,0 +1,421 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   DataIQ Design System - CSS Variables
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  color-scheme: light;
+  /* Navigation */
+  --nav: #ffffff;
+  --nav-text: #111827;
+  --nav-muted: #6b7280;
+  --nav-active: var(--accent-light);
+
+  /* Accent */
+  --accent: #4361ee; /* Primary blue */
+  --accent-hover: #3451d1;
+  --accent-light: #eef1fd;
+
+  /* Icon square colors */
+  --icon-blue: #4361ee; /* search */
+  --icon-indigo: #5c4ee8; /* target */
+  --icon-violet: #9333ea; /* funnel */
+  --icon-steel: #4f72f5; /* T */
+
+  /* Background & Surface */
+  --bg: #eef0f6; /* Page background */
+  --card: #ffffff; /* Card background */
+  --bg-overlay: rgba(15, 17, 23, 0.85);
+
+  /* Borders */
+  --border: #e8eaf0; /* Card border (default) */
+  --border-active: #4361ee; /* Card border (active/selected) */
+  --border-med: #d0d5e0;
+  --border-dark: #b0b8cb;
+
+  /* Text */
+  --text: #111827; /* Card title (default) */
+  --text-active: #4361ee; /* Card title (active/selected) */
+  --text2: #6b7280; /* Body/description */
+  --text3: #9ca3af; /* Muted text */
+
+  /* Typography */
+  --font-label: 12px;
+  --font-caption: 13px;
+  --font-body: 14px;
+  --font-body-lg: 16px;
+  --font-title-sm: 18px;
+  --font-title-md: 20px;
+  --font-title-lg: 24px;
+
+  /* Alert/Status colors */
+  --yellow-bg: #fffbea;
+  --yellow-border: #f5e8a3;
+  --red: #dc2626;
+  --amber: #d97706;
+  --green: #059669;
+  --blue: #2d47c5;
+  --purple: #5b21b6;
+
+  /* Spacing & Border Radius */
+  --radius: 10px;
+  --radius-sm: 7px;
+  --radius-lg: 12px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Global Styles
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+code {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas,
+    'Courier New', monospace;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Scrollbar Styling
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-med);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-dark);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Animations & Transitions
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: no-preference) {
+  * {
+    transition: background-color 0.15s ease-out, border-color 0.15s ease-out,
+      color 0.15s ease-out;
+  }
+}
+
+/* Selection styling */
+::selection {
+  background: var(--accent-light);
+  color: var(--text);
+}
+
+::-moz-selection {
+  background: var(--accent-light);
+  color: var(--text);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Utility Classes
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.diq-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+}
+
+.diq-card-h {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+
+.diq-card-sub {
+  font-size: 12px;
+  color: var(--text2);
+  margin-bottom: 16px;
+}
+
+.diq-badge {
+  font-size: 10.5px;
+  padding: 2px 9px;
+  border-radius: 20px;
+  white-space: nowrap;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.diq-b-blue {
+  background: #eef1fd;
+  color: #2d47c5;
+}
+
+.diq-b-green {
+  background: #e8f8f1;
+  color: #1a7a4a;
+}
+
+.diq-b-amber {
+  background: #fff4e0;
+  color: #8a5500;
+}
+
+.diq-b-red {
+  background: #fdecea;
+  color: #b02020;
+}
+
+.diq-b-purple {
+  background: #f0ebfd;
+  color: #5b21b6;
+}
+
+.diq-b-gray {
+  background: #f1f3f7;
+  color: #5c6275;
+}
+
+/* Buttons */
+.diq-btn {
+  font-size: 11.5px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 500;
+  transition: all 0.15s ease-out;
+}
+
+.diq-btn:hover {
+  background: var(--accent-light);
+  border-color: var(--border-active);
+  color: var(--accent);
+}
+
+.diq-btn-p {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.diq-btn-p:hover {
+  background: var(--accent-hover);
+}
+
+/* Upload Zone */
+.diq-upload-zone {
+  border: 2px dashed var(--border-med);
+  border-radius: var(--radius);
+  padding: 32px 20px;
+  text-align: center;
+  background: var(--card);
+  cursor: pointer;
+  transition: all 0.15s ease-out;
+}
+
+.diq-upload-zone:hover {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+
+/* Tabs */
+.diq-tab {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.15s ease-out;
+}
+
+.diq-tab.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.diq-tab:hover:not(.active) {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+/* Issues/Recommendations */
+.diq-issue-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 7px;
+  background: var(--card);
+}
+
+.diq-issue-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.diq-issue-name {
+  font-size: 12.5px;
+  flex: 1;
+  color: var(--text);
+}
+
+.diq-issue-cnt {
+  font-size: 12px;
+  font-family: monospace;
+  color: var(--text2);
+}
+
+.diq-rec-item {
+  padding: 11px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--card);
+  font-size: 12px;
+  color: var(--text);
+  margin-bottom: 7px;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  line-height: 1.5;
+}
+
+/* Grid utilities */
+.diq-grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.diq-grid4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.diq-act-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+/* KPI */
+.diq-kpi {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.diq-kpi-lbl {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 8px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Force Light Theme - Prevent Dark Mode Override
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: light;
+  }
+}
+
+.diq-kpi-val {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  font-family: monospace;
+  margin-bottom: 4px;
+}
+
+.diq-kpi-sub {
+  font-size: 10.5px;
+  color: var(--text3);
+}
+
+/* Chart wrapper */
+.diq-chart-wrap {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.diq-chart-t {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+/* Data Quality Score */
+.diq-score-wrap {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 18px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+}
+
+/* Tips */
+.diq-tip {
+  background: var(--yellow-bg);
+  border: 1px solid var(--yellow-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 11.5px;
+  color: #7a6200;
+  margin-top: 4px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .diq-grid2,
+  .diq-grid4,
+  .diq-act-grid {
+    grid-template-columns: 1fr;
+  }
+}

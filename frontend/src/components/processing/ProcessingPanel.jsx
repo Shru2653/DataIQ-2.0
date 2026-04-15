@@ -28,15 +28,15 @@ export default function ProcessingPanel({
     <div className="space-y-14">
       {/* Tabs */}
       <div className="mb-8">
-        <div className="flex space-x-2 border-b border-slate-200">
+        <div className="flex space-x-2 border-b border-[var(--border)]">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`px-4 py-3 font-semibold text-sm transition-colors ${
                 activeTab === tab.id
-                  ? "border-b-2 border-blue-600 text-blue-600"
-                  : "text-slate-500 hover:text-slate-800"
+                  ? "border-b-2 border-[var(--accent)] text-[var(--accent)]"
+                  : "text-[var(--text3)] hover:text-[var(--text2)]"
               }`}
             >
               {tab.name}

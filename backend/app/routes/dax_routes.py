@@ -262,7 +262,7 @@ def _generate_dax_measures(table: str, prof: Dict[str, Any], settings: DaxMeasur
     return unique_items
 
 
-@router.post("/api/dax/generate")
+@router.post("/dax/generate")
 async def dax_generate(request: DaxRequest, current_user: UserInDB = Depends(get_current_active_user)):
     try:
         df = _load_dataframe_for_processing_user(request.filename, current_user)
@@ -292,7 +292,7 @@ async def dax_generate(request: DaxRequest, current_user: UserInDB = Depends(get
         raise HTTPException(status_code=500, detail=f"Error generating DAX queries: {str(e)}")
 
 
-@router.post("/api/dax/measures")
+@router.post("/dax/measures")
 async def dax_measures(request: 'DaxMeasuresRequest', current_user: UserInDB = Depends(get_current_active_user)):
     try:
         df = _load_dataframe_for_processing_user(request.filename, current_user)

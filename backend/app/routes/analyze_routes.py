@@ -429,7 +429,7 @@ def generate_charts(df: pd.DataFrame, numeric_cols: List[str], datetime_cols: Li
     return charts
 
 
-@router.post("/api/auto-dashboard/analyze")
+@router.post("/auto-dashboard/analyze")
 async def auto_dashboard_analyze(request: AutoDashboardRequest, current_user: UserInDB = Depends(get_current_active_user)):
     try:
         # Load and sanitize data

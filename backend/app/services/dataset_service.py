@@ -7,6 +7,9 @@ from beanie import PydanticObjectId
 from app.models.dataset_model import Dataset, CleanedVersion
 from app.core.database import get_db
 from app.utils.paths import user_files_dir, user_cleaned_dir
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 async def register_upload(user_id: str, filename: str, size: int = 0, content_type: Optional[str] = None) -> Dataset:
@@ -36,7 +39,7 @@ async def resolve_original_filename(user_id: str, name: str) -> str:
         if doc and doc.get("filename"):
             return doc["filename"]
     except Exception:
-        pass
+        logger.exception("resolve_original_filename failed; falling back to provided name")
     return name
 
 
@@ -55,7 +58,7 @@ async def add_cleaned_version(user_id: str, original_filename: str, cleaned_file
             original_filename = doc["filename"]
     except Exception:
         # best-effort; continue with provided original_filename
-        pass
+        logger.exception("add_cleaned_version: failed to resolve root original; continuing")
 
     try:
         ds = await Dataset.find_one((Dataset.user_id == user_id) & (Dataset.filename == original_filename))
@@ -81,7 +84,7 @@ async def add_cleaned_version(user_id: str, original_filename: str, cleaned_file
         
     except Exception as e:
         # Log the Beanie error to see why it failed
-        print(f"Beanie save failed (error: {e}). Using motor fallback.")
+        logger.exception("Beanie save failed; using motor fallback")
         try:
             db = get_db()
             cpath = user_cleaned_dir(user_id) / cleaned_filename
@@ -123,6 +126,5 @@ async def add_cleaned_version(user_id: str, original_filename: str, cleaned_file
 
         except Exception as motor_e:
             # If this fails, something is very wrong
-            print(f"CRITICAL: Motor fallback for add_cleaned_version FAILED: {motor_e}")
-            pass
+            logger.exception("CRITICAL: Motor fallback for add_cleaned_version FAILED")
         return None
